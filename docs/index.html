@@ -389,8 +389,11 @@ summary {
 </div>
 
 
-<p>Packages necessaires</p>
-<pre class="r"><code>#install.packages(&quot;tidyverse&quot;)
+<p>Ce “markdown” est dedie a la datavisualisation des donnees sur la vacination contre le COVID-19.</p>
+<p>Le but est de voir si la vaccination privilegie un groupe de personnes ou laisse de cote les departements d’Outre-Mer.</p>
+<p>Toutes les donnees s’arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci etant deconseille aux personnes agees.</p>
+<pre class="r"><code>#packages necessaires
+#install.packages(&quot;tidyverse&quot;)
 #install.packages(&quot;lubridate&quot;)
 #install.packages(&quot;zoo&quot;)
 library(tidyverse)</code></pre>
@@ -420,8 +423,9 @@ library(tidyverse)</code></pre>
 <pre><code>## The following object is masked from &#39;package:tidyr&#39;:
 ## 
 ##     smiths</code></pre>
-<p>Liens vers les donnees de data.gouv.fr</p>
-<pre class="r"><code>#nombre quotidien de residents en EHPAD ayant reçu au moins une dose ou deux doses, par date d&#39;injection
+<pre class="r"><code>#liens vers les donnees de data.gouv.fr
+
+#nombre quotidien de residents en EHPAD ayant reçu au moins une dose ou deux doses, par date d&#39;injection
 url1 &lt;- &quot;https://www.data.gouv.fr/fr/datasets/r/72d3b91e-ef24-4c91-a3c3-52b72d418000&quot;
 #nombre de residents en EHPAD ayant reçu au moins une dose ou deux doses ainsi que la couverture vaccinale, arrete a la derniere date disponible
 url2 &lt;- &quot;https://www.data.gouv.fr/fr/datasets/r/104f3ab1-de0f-41c5-9bd8-edab9926882c&quot;
@@ -433,8 +437,9 @@ url4 &lt;- &quot;https://www.data.gouv.fr/fr/datasets/r/dc103057-d933-4e4b-bdbf-
 url5 &lt;- &quot;https://www.data.gouv.fr/fr/datasets/r/2dadbaa7-02ae-43df-92bb-53a82e790cb2&quot;
 #nombre de r?sidents en EHPAD ayant re?u au moins une dose ou deux doses ainsi que la couverture vaccinale, arr?t? ? la derni?re date disponible, echelle regionale
 url6 &lt;-&quot;https://www.data.gouv.fr/fr/datasets/r/5cb5a964-a8f7-4111-b527-1a2d48dee3d4&quot;</code></pre>
-<p>Lire les donnees de data.gouv</p>
-<pre class="r"><code>vacsi_res_fra &lt;- read.csv(url1)
+<pre class="r"><code>#lire les donnees de data.gouv
+
+vacsi_res_fra &lt;- read.csv(url1)
 vacsi_res_tot_fra &lt;- read.csv(url2)
 vacsi_a_fra &lt;- read.csv(url3) %&gt;%
   arrange(clage_vacsi)

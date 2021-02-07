@@ -8,11 +8,11 @@ knit: (function(input_file, encoding) {
 output: html_document
 ---
 
-Ce "markdown" est dédié à la datavisualisation des données sur la vacination contre le COVID-19.
+Ce "markdown" est dedie a la datavisualisation des donnees sur la vacination contre le COVID-19.
 
 Le but est de voir si la vaccination privilegie un groupe de personnes ou laisse de cote les departements d'Outre-Mer.
 
-Toutes les données s'arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci étant deconseille aux personnes agees.
+Toutes les donnees s'arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci etant deconseille aux personnes agees.
 
 ```{r}
 #packages necessaires
