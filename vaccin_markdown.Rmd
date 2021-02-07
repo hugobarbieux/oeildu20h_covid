@@ -8,9 +8,14 @@ knit: (function(input_file, encoding) {
 output: html_document
 ---
 
-Packages necessaires
+Ce "markdown" est dédié à la datavisualisation des données sur la vacination contre le COVID-19.
+
+Le but est de voir si la vaccination privilegie un groupe de personnes ou laisse de cote les departements d'Outre-Mer.
+
+Toutes les données s'arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci étant deconseille aux personnes agees.
 
 ```{r}
+#packages necessaires
 #install.packages("tidyverse")
 #install.packages("lubridate")
 #install.packages("zoo")
@@ -20,9 +25,11 @@ library(zoo)
 library(reshape2)
 ```
 
-Liens vers les donnees de data.gouv.fr
+
 
 ```{r}
+#liens vers les donnees de data.gouv.fr
+
 #nombre quotidien de residents en EHPAD ayant reçu au moins une dose ou deux doses, par date d'injection
 url1 <- "https://www.data.gouv.fr/fr/datasets/r/72d3b91e-ef24-4c91-a3c3-52b72d418000"
 #nombre de residents en EHPAD ayant reçu au moins une dose ou deux doses ainsi que la couverture vaccinale, arrete a la derniere date disponible
@@ -37,9 +44,11 @@ url5 <- "https://www.data.gouv.fr/fr/datasets/r/2dadbaa7-02ae-43df-92bb-53a82e79
 url6 <-"https://www.data.gouv.fr/fr/datasets/r/5cb5a964-a8f7-4111-b527-1a2d48dee3d4"
 ```
 
-Lire les donnees de data.gouv
+
 
 ```{r}
+#lire les donnees de data.gouv
+
 vacsi_res_fra <- read.csv(url1)
 vacsi_res_tot_fra <- read.csv(url2)
 vacsi_a_fra <- read.csv(url3) %>%
