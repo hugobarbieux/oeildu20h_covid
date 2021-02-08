@@ -11,9 +11,9 @@ output: html_document
 
 Ce "markdown" est dedie a la datavisualisation des donnees sur la vacination contre le COVID-19.
 
-Le but : voir si la vaccination privilegie un groupe de personnes et si les departements d'Outre-Mer sont laisses de cote.
+Le but : voir si la vaccination privilegie un groupe de personnes et si les departements d'Outre-mer sont laisses de cote.
 
-Toutes les donnees s'arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci etant deconseille aux personnes agees.
+Toutes les donnees s'arretent au 5 fevrier, avant que le vaccin AstraZeneca soit administré aux patients, celui-ci etant deconseille aux personnes agees.
 
 ```{r include=FALSE}
 # Packages necessaires
