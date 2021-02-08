@@ -1,5 +1,5 @@
 ---
-title: "oeildu20h"
+title: "L'Oeil du 20h"
 knit: (function(input_file, encoding) {
   out_dir <- 'docs';
   rmarkdown::render(input_file,
@@ -7,14 +7,15 @@ knit: (function(input_file, encoding) {
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 output: html_document
 ---
+# Etat des lieux de la vaccination en France
 
 Ce "markdown" est dedie a la datavisualisation des donnees sur la vacination contre le COVID-19.
 
-Le but est de voir si la vaccination privilegie un groupe de personnes ou laisse de cote les departements d'Outre-Mer.
+Le but : voir si la vaccination privilegie un groupe de personnes et si les departements d'Outre-Mer sont laisses de cote.
 
 Toutes les donnees s'arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci etant deconseille aux personnes agees.
 
-```{r}
+```{r include=FALSE}
 # Packages necessaires
 
 #install.packages("tidyverse")
@@ -27,9 +28,9 @@ library(zoo)
 library(reshape2)
 ```
 
+# Ci-dessous, les sources pour les données de vaccination :
 
-
-```{r}
+```{r echo=TRUE}
 # Liens de telechargement vers les donnees de data.gouv.fr
 
 #nombre quotidien de residents en EHPAD ayant reçu au moins une dose ou deux doses, par date d'injection
@@ -46,7 +47,7 @@ url5 <- "https://www.data.gouv.fr/fr/datasets/r/2dadbaa7-02ae-43df-92bb-53a82e79
 url6 <-"https://www.data.gouv.fr/fr/datasets/r/5cb5a964-a8f7-4111-b527-1a2d48dee3d4"
 ```
 
-```{r}
+```{r include=FALSE}
 # Lire les donnees de data.gouv
 
 vacsi_res_fra <- read.csv(url1)
@@ -58,7 +59,13 @@ vacsi_tot_a_reg <- read.csv(url5) # colClasses = c(reg = "character"))
 vacsi_res_tot_reg_fra <- read.csv(url6)
 ```
 
-```{r}
+#### Attention : la seconde dose ne figure pas toujours dans data.gouv.fr !
+
+Il faut retrouver ces donnees sur Geodes et les ajouter au tableau.
+
+Geodes propose le total des secondes injections par jour. Les récuperer se fait largement a la main.
+
+```{r include=FALSE}
 # Attention : "vacsi_a_fra" (vaccination age quotidien) ne mentionne pas la seconde dose !
 # Il faut retrouver ces data sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
 
@@ -77,7 +84,7 @@ vacsi_a_fra_2doses <- left_join(vacsi_a_fra, vacsi_a_fra_dose2, by=c("jour"="jou
   rename(n_cum_dose2 = value)
 ```
 
-```{r}
+```{r include=FALSE}
 # Calculer le nombre journalier de vaccination 2
 
 vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
@@ -93,7 +100,7 @@ vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
   filter(clage_vacsi %in%  classe_age)
 ```
 
-```{r}
+```{r include=FALSE}
 # Importer les libraries pour construire un graphique
 
 #This line of code installs the pacman page if you do not have it installed - if you do, it simply loads the package
@@ -109,7 +116,11 @@ pacman::p_load('dplyr', 'tidyr', 'gapminder',
 library(extrafont)
 ```
 
-```{r}
+# Courbes de la campagne de vaccination dose 1
+
+La vaccination pour la dose 1 a commence le 27 decembre 2020 en ordre plutot disperse.
+
+```{r echo=FALSE}
 # Courbes de la campagne de vaccination dose 1
 
 colours <- c('#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2')
@@ -137,7 +148,13 @@ p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = n_cum_dose1, colour=as.charact
 p
 ```
 
-```{r}
+# Courbes de la campagne de vaccination dose 2
+
+L'administration de la deuxieme dose a commence le 26 janvier.
+
+Les courbes sont plus franches, le groupe des 50-59 ans a le plus largement beneficie de la seconde dose.
+
+```{r echo=FALSE}
 # Courbes de la campagne de vaccination dose 2
 # Modifier la base de donnees pour commencer plus tard
 
@@ -166,8 +183,10 @@ p <- ggplot(df, aes(x = jour, y = n_cum_dose2, colour = as.character(clage_vacsi
 p
 ```
 
-```{r}
-# Stacked bar chart - part de la dose 2 par rapport � la dose 1
+# Part de la dose 2 par rapport a la dose 1
+
+```{r include=FALSE}
+# Stacked bar chart - part de la dose 2 par rapport a la dose 1
 # Prepare the data
 
 # Inventer/ajouter un nouvel index pour les ehpad
@@ -198,7 +217,13 @@ df <- melt(vacsi_res_tot_fra,  id.vars = "clage_vacsi", variable.name = "series"
 
 ```
 
-```{r}
+Ce graphique représente la part de doses 2 par rapport à la dose 1 par groupe d'age, au niveau national.
+
+Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 50-59 ans.
+
+Beaucoup mois avec les 70-79 ans et les + de 80 ans.
+
+```{r echo=FALSE}
 # Make a stacked bar chart
 
 p2 <- ggplot(data = df,
@@ -231,8 +256,16 @@ p2
  
 ```
 
-```{r}
-# Preparation des donn?es pour des graphique comparant l'avancement de la vaccination par r?gions et par tranches d'ages, en pourcentage de la population concernee
+# Analyse en proportion de la population
+
+Les graphiques en % permettent de mettre chaque region et char tranche d'age au meme niveau.
+
+Cette etape est delicate car les groupes d'ages sont repartis differemment sur l'INSEE (donnees de population) et sur data.gouv (donnees de vaccination).
+
+Donc il y a pas mal de netoyage de donnees a faire en amont.
+
+```{r include=FALSE}
+# Preparation des donnees pour des graphique comparant l'avancement de la vaccination par regions et par tranches d'ages, en pourcentage de la population concernee
 # Beaucoup d'etapes !
 
 # D'abord importer les donnees INSEE avec la population par regions et le code region
@@ -247,7 +280,7 @@ reg_pop <- read.csv("population_regions.csv",
 
 ```
 
-```{r}
+```{r include=FALSE}
 # Population totale (indice 0) dans les data de data.gouv
 # Assembler avec les donn?es INSEE
 
@@ -264,7 +297,7 @@ df2 <- df2[ c(6, 11, 12) ]
 df2 <- melt(df2,  id.vars = "noms", variable.name = "series")
 ```
 
-```{r}
+```{r include=FALSE}
 # Donnees pour la tranche d'age 40-59 ans comme classes par l'INSEE
 
 # Les tranches d'ages sont decoupees differemment sur data.gouv
@@ -287,7 +320,7 @@ df3 <- df3[ c(4, 9, 10) ]
 df3 <- melt(df3,  id.vars = "noms", variable.name = "series")
 ```
 
-```{r}
+```{r include=FALSE}
 # 60-74 ans
 
 df4 <- vacsi_tot_a_reg %>%
@@ -305,7 +338,7 @@ df4 <- df4[ c(4, 9, 10) ]
 df4 <- melt(df4,  id.vars = "noms", variable.name = "series")
 ```
 
-```{r}
+```{r include=FALSE}
 # 75 ans et plus ans
 
 df5 <- vacsi_tot_a_reg %>%
@@ -323,7 +356,11 @@ df5 <- df5[ c(4, 9, 10) ]
 df5 <- melt(df5,  id.vars = "noms", variable.name = "series")
 ```
 
-```{r}
+Le graphique ci-dessous montre que, proportionnellement à leur population, les territoires d'Outre-mer ont reçu moins de vaccins, doses 1 et 2 confondues.
+
+On constate aussi des disparites entre les regions.
+
+```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population totale
 
 p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
@@ -353,7 +390,11 @@ p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p3
 ```
 
-```{r}
+Plus en détail, le groupe des 40-59 ans apparait homogene et la seconde injection semble bien suivre la premiere.
+
+Bien que pour chaque region, moins de 3% des 40-59 ans sont accines (au 5 fevrier).
+
+```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population des 40-59 ans
 
 p4 <- ggplot(df3, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
@@ -383,7 +424,11 @@ p4 <- ggplot(df3, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p4
 ```
 
-```{r}
+La deuxieme injection suit moins rapidement la premiere pour les 60-74 ans.
+
+Surtout à Mayotte, ou plus de 3% de ce groupe a recu la premiere dose et presque personne n'a recu la seconde.
+
+```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population des 60-74 ans
 
 p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
@@ -413,7 +458,11 @@ p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p5
 ```
 
-```{r}
+Le ratio est encore plus large dans le groupe des plus de 75 ans.
+
+Notez que l'echelle a change et va de 0 a 30%.
+
+```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population des 75 ans et plus
 
 p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
@@ -443,7 +492,11 @@ p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p6
 ```
 
-```{r}
+L'etat de la vaccination est bien avance dans les EHPAD avec presque 100% des residents corses ayant recu la premiere dose.
+
+Pourtant dans les EHPAD d'Outre-mer, et particulierement en Guadeloupe et en Guyane, l'ecart est tres marque entre la premiere et la seconde injection.
+
+```{r include=FALSE}
 # Avancement de la vaccination dans les EHPAD, classement par r?gion
 
 df6 <- vacsi_res_tot_reg_fra %>%
@@ -454,7 +507,7 @@ df6 <- df6[ c(7,5,6) ]
 df6 <- melt(df6,  id.vars = "noms", variable.name = "series")
 ```
 
-```{r}
+```{r echo=FALSE}
 # Graphique comparant les doses administrees en poucentage de la population des 75 ans et plus
 
 p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
