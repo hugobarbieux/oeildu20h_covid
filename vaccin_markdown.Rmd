@@ -15,6 +15,8 @@ Le but : voir si la vaccination privilegie un groupe de personnes et si les depa
 
 Toutes les donnees s'arretent au 5 fevrier, avant que le vaccin AstraZeneca soit administré aux patients, celui-ci etant deconseille aux personnes agees.
 
+
+
 ```{r include=FALSE}
 # Packages necessaires
 
@@ -65,6 +67,8 @@ Il faut retrouver ces donnees sur Geodes et les ajouter au tableau.
 
 Geodes propose le total des secondes injections par jour. Les récuperer se fait largement a la main.
 
+
+
 ```{r include=FALSE}
 # Attention : "vacsi_a_fra" (vaccination age quotidien) ne mentionne pas la seconde dose !
 # Il faut d'abord retrouver ces donnees sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
@@ -96,7 +100,7 @@ vacsi_a_fra_2doses[vacsi_a_fra_2doses<0] <- 0 # petit truc pour regler un bug av
 
 ```
 
-```{r}
+```{r include=FALSE}
 # Maintenant nous avons une base de donnees "vacsi_a_fra_2doses" qui comprend les deux injections par jour et par tranche d'age.
 # Il faut faire correspondre les tranches d'age de data.gouv.fr avec les tranches de l'INSEE
 # Donc assimiler les tranches 49 et 59, 69 et 74, 79 et 80
@@ -172,6 +176,8 @@ library(extrafont)
 
 La vaccination pour la dose 1 a commence le 27 decembre 2020 en ordre plutot disperse.
 
+
+
 ```{r echo=FALSE}
 # Courbes de la campagne de vaccination dose 1
 
@@ -200,11 +206,15 @@ p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = cum_dose1, colour=as.character
 p
 ```
 
+
+
 ## Courbes de la campagne de vaccination dose 2
 
 L'administration de la deuxieme dose a commence le 26 janvier.
 
 Les courbes sont plus franches, le groupe des 50-59 ans a le plus largement beneficie de la seconde dose.
+
+
 
 ```{r echo=FALSE}
 # Courbes de la campagne de vaccination dose 2
@@ -235,7 +245,10 @@ p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))
 p
 ```
 
+
+
 ## Part de la dose 2 par rapport a la dose 1
+
 
 ```{r include=FALSE}
 # Stacked bar chart - part de la dose 2 par rapport a la dose 1
@@ -251,23 +264,54 @@ vacsi_res_tot_fra$clage_vacsi <- ehpad_code_age
 names(vacsi_res_tot_fra)[names(vacsi_res_tot_fra) == "res_vac_tot_dose1"] <- "n_tot_dose1"
 names(vacsi_res_tot_fra)[names(vacsi_res_tot_fra) == "res_vac_tot_dose2"] <- "n_tot_dose2"
 
-# Supprimer les colonnes non essentielles
-vacsi_res_tot_fra <- vacsi_res_tot_fra[ -c(5, 6) ]
+# Supprimer les colonnes non essentielles (couverture vaccinale)
+vacsi_res_tot_fra <- vacsi_res_tot_fra[ -c(1, 5, 6) ]
+
+# Reorganiser les classes d'age comme plus haut
+
+dt4 <- vacsi_tot_a_fra %>%
+  filter(clage_vacsi %in% c(49, 59)) %>%
+  mutate(jour = ymd(jour)) %>%
+  group_by(jour) %>%
+  summarise(n_tot_dose1 = sum(n_tot_dose1), n_tot_dose2 = sum(n_tot_dose2))
+
+clagedt4 <- c("49_59")
+dt4$clage_vacsi <- clagedt4
+
+dt5 <- vacsi_tot_a_fra %>%
+  filter(clage_vacsi %in% c(64, 69, 74)) %>%
+  mutate(jour = ymd(jour)) %>%
+  group_by(jour) %>%
+  summarise(n_tot_dose1 = sum(n_tot_dose1), n_tot_dose2 = sum(n_tot_dose2))
+
+clagedt5 <- c("69_74")
+dt5$clage_vacsi <- clagedt5
+
+dt6 <- vacsi_tot_a_fra %>%
+  filter(clage_vacsi %in% c(79, 80)) %>%
+  mutate(jour = ymd(jour)) %>%
+  group_by(jour) %>%
+  summarise(n_tot_dose1 = sum(n_tot_dose1), n_tot_dose2 = sum(n_tot_dose2))
+
+clagedt6 <- c("79_80")
+dt6$clage_vacsi <- clagedt6
 
 # Lier les deux dataframes
 vacsi_res_tot_fra <- vacsi_res_tot_fra %>%
-  rbind(vacsi_tot_a_fra)
+  rbind(dt4, dt5, dt6)
 
 # Supprimer les colonnes non essentielles
-vacsi_res_tot_fra <- vacsi_res_tot_fra[ -c(1, 2) ]
+dt7 <- vacsi_res_tot_fra[ -c(1) ]
 
-classe_age2 <- c("59","64","69","79","80","99")
+#classe_age2 <- c("59","64","69","79","80","99")
 
 # Passer en format long et ne garder que les indes importants
-df <- melt(vacsi_res_tot_fra,  id.vars = "clage_vacsi", variable.name = "series") %>%
-  filter(clage_vacsi %in%  classe_age2)
+dt7 <- melt(dt7,  id.vars = "clage_vacsi", variable.name = "series") #%>%
+  #filter(clage_vacsi %in%  classe_age2)
 
 ```
+
+
 
 Ce graphique représente la part de doses 2 par rapport à la dose 1 par groupe d'age, au niveau national.
 
@@ -275,10 +319,12 @@ Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 50-59
 
 Beaucoup mois avec les 70-79 ans et les + de 80 ans.
 
+
+
 ```{r echo=FALSE}
 # Make a stacked bar chart
 
-p2 <- ggplot(data = df,
+p2 <- ggplot(data = dt7,
             aes(x = as.character(clage_vacsi),
                 y = value,
                 fill = series)) +
@@ -286,12 +332,12 @@ p2 <- ggplot(data = df,
            position = "fill") +
   scale_fill_manual(values = c("#1380A1", "#FAAB18"),
                     labels = c("1ere dose", "2nde dose")) +
-  scale_x_discrete(labels  = c("50-59 ans", "60-64 ans", "65-69 ans", "70-79 ans", "+ de 80 ans", "EHPAD")) +
+  scale_x_discrete(labels  = c("40-59 ans", "60-74 ans", "75 ans et plus", "EHPAD")) +
   bbc_style() +
   scale_y_continuous(labels = scales::percent) +
   geom_hline(yintercept = 0, size = 1, colour = "#333333") +
   labs(title = "COVID-19 - Vaccination",
-       subtitle = "Ratio de doses administrees pour les classes d'age represent?es",
+       subtitle = "Ratio de doses administrees pour les classes d'age representees",
        caption = "Source : data.gouv.fr") +
   theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown"),
         plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
@@ -308,6 +354,7 @@ p2
  
 ```
 
+
 ## Analyse en proportion de la population
 
 Les graphiques en % permettent de mettre chaque region et char tranche d'age au meme niveau.
@@ -315,6 +362,8 @@ Les graphiques en % permettent de mettre chaque region et char tranche d'age au 
 Cette etape est delicate car les groupes d'ages sont repartis differemment sur l'INSEE (donnees de population) et sur data.gouv (donnees de vaccination).
 
 Donc il y a pas mal de netoyage de donnees a faire en amont.
+
+
 
 ```{r include=FALSE}
 # Preparation des donnees pour des graphique comparant l'avancement de la vaccination par regions et par tranches d'ages, en pourcentage de la population concernee
@@ -408,9 +457,13 @@ df5 <- df5[ c(4, 9, 10) ]
 df5 <- melt(df5,  id.vars = "noms", variable.name = "series")
 ```
 
+
+
 Le graphique ci-dessous montre que, proportionnellement à leur population, les territoires d'Outre-mer ont reçu moins de vaccins, doses 1 et 2 confondues.
 
 On constate aussi des disparites entre les regions.
+
+
 
 ```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population totale
@@ -442,9 +495,13 @@ p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p3
 ```
 
+
+
 Plus en détail, le groupe des 40-59 ans apparait homogene et la seconde injection semble bien suivre la premiere.
 
 Bien que pour chaque region, moins de 3% des 40-59 ans sont accines (au 5 fevrier).
+
+
 
 ```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population des 40-59 ans
@@ -476,9 +533,13 @@ p4 <- ggplot(df3, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p4
 ```
 
+
+
 La deuxieme injection suit moins rapidement la premiere pour les 60-74 ans.
 
 Surtout à Mayotte, ou plus de 3% de ce groupe a recu la premiere dose et presque personne n'a recu la seconde.
+
+
 
 ```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population des 60-74 ans
@@ -510,9 +571,13 @@ p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p5
 ```
 
+
+
 Le ratio est encore plus large dans le groupe des plus de 75 ans.
 
 Notez que l'echelle a change et va de 0 a 30%.
+
+
 
 ```{r echo=FALSE}
 # Graphique comparant les doses administr?es en poucentage de la population des 75 ans et plus
@@ -544,9 +609,13 @@ p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 p6
 ```
 
+
+
 L'etat de la vaccination est bien avance dans les EHPAD avec presque 100% des residents corses ayant recu la premiere dose.
 
 Pourtant dans les EHPAD d'Outre-mer, et particulierement en Guadeloupe et en Guyane, l'ecart est tres marque entre la premiere et la seconde injection.
+
+
 
 ```{r include=FALSE}
 # Avancement de la vaccination dans les EHPAD, classement par r?gion
