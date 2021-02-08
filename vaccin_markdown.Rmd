@@ -15,10 +15,12 @@ Le but est de voir si la vaccination privilegie un groupe de personnes ou laisse
 Toutes les donnees s'arretent au 5 fevrier, avant que le vaccin soit administré aux patients, celui-ci etant deconseille aux personnes agees.
 
 ```{r}
-#packages necessaires
+# Packages necessaires
+
 #install.packages("tidyverse")
 #install.packages("lubridate")
 #install.packages("zoo")
+#install.packages("reshape2")
 library(tidyverse)
 library(lubridate)
 library(zoo)
@@ -28,7 +30,7 @@ library(reshape2)
 
 
 ```{r}
-#liens vers les donnees de data.gouv.fr
+# Liens de telechargement vers les donnees de data.gouv.fr
 
 #nombre quotidien de residents en EHPAD ayant reçu au moins une dose ou deux doses, par date d'injection
 url1 <- "https://www.data.gouv.fr/fr/datasets/r/72d3b91e-ef24-4c91-a3c3-52b72d418000"
@@ -44,10 +46,8 @@ url5 <- "https://www.data.gouv.fr/fr/datasets/r/2dadbaa7-02ae-43df-92bb-53a82e79
 url6 <-"https://www.data.gouv.fr/fr/datasets/r/5cb5a964-a8f7-4111-b527-1a2d48dee3d4"
 ```
 
-
-
 ```{r}
-#lire les donnees de data.gouv
+# Lire les donnees de data.gouv
 
 vacsi_res_fra <- read.csv(url1)
 vacsi_res_tot_fra <- read.csv(url2)
@@ -58,13 +58,14 @@ vacsi_tot_a_reg <- read.csv(url5) # colClasses = c(reg = "character"))
 vacsi_res_tot_reg_fra <- read.csv(url6)
 ```
 
-Attention : "vacsi_a_fra" (vaccination age quotidien) ne mentionne pas la seconde dose !
-Il faut retrouver ces data sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
-
-Importer les data de seconde vaccination par jour - disponibles sur Geodes
-Les passer du format wide au format long et les combiner aux data "vacsi_a_fra"
-
 ```{r}
+# Attention : "vacsi_a_fra" (vaccination age quotidien) ne mentionne pas la seconde dose !
+# Il faut retrouver ces data sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
+
+# Importer les data de seconde vaccination par jour - disponibles sur Geodes
+# Les passer du format wide au format long et les combiner aux data "vacsi_a_fra"
+
+
 vacsi_a_fra_dose2 <- read.csv("vacsi_a_fra_dose2.csv", header = T) %>%
   pivot_longer(c(2:12), names_to ="clage_vacsi") %>%
   arrange(clage_vacsi)
@@ -76,9 +77,9 @@ vacsi_a_fra_2doses <- left_join(vacsi_a_fra, vacsi_a_fra_dose2, by=c("jour"="jou
   rename(n_cum_dose2 = value)
 ```
 
-Calculer le nombre journalier de vaccination 2
-
 ```{r}
+# Calculer le nombre journalier de vaccination 2
+
 vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
   mutate(jour = ymd(jour)) %>%
   arrange(clage_vacsi, jour) %>%
@@ -92,19 +93,25 @@ vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
   filter(clage_vacsi %in%  classe_age)
 ```
 
-Importer les libraries pour faire un graph
-
 ```{r}
+# Importer les libraries pour construire un graphique
+
+#This line of code installs the pacman page if you do not have it installed - if you do, it simply loads the package
+#if(!require(pacman))install.packages("pacman")
+
 pacman::p_load('dplyr', 'tidyr', 'gapminder',
                'ggplot2',  'ggalt',
                'forcats', 'R.utils', 'png', 
                'grid', 'ggpubr', 'scales',
                'bbplot')
 
+#install.packages(extrafont)
 library(extrafont)
 ```
 
 ```{r}
+# Courbes de la campagne de vaccination dose 1
+
 colours <- c('#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2')
 
 p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = n_cum_dose1, colour=as.character(clage_vacsi)))+
@@ -131,6 +138,9 @@ p
 ```
 
 ```{r}
+# Courbes de la campagne de vaccination dose 2
+# Modifier la base de donnees pour commencer plus tard
+
 df <- subset(vacsi_a_fra_2doses, vacsi_a_fra_2doses$jour > as.Date("2021-01-23"))
 
 p <- ggplot(df, aes(x = jour, y = n_cum_dose2, colour = as.character(clage_vacsi))) +
@@ -156,43 +166,40 @@ p <- ggplot(df, aes(x = jour, y = n_cum_dose2, colour = as.character(clage_vacsi
 p
 ```
 
-
-
 ```{r}
-#Stacked bar chart
-#Prepare the data
+# Stacked bar chart - part de la dose 2 par rapport � la dose 1
+# Prepare the data
 
-#Inventer/ajouter un nouvel index
+# Inventer/ajouter un nouvel index pour les ehpad
 ehpad_code_age <- c(99)
 
-#Mettre cet index dans une nouvelle colonne
+# Mettre cet index dans une nouvelle colonne
 vacsi_res_tot_fra$clage_vacsi <- ehpad_code_age
 
-#Renommer les colonnes pour correspondre avec "vacsi_tot_a_fra"
+# Renommer les colonnes pour correspondre avec "vacsi_tot_a_fra"
 names(vacsi_res_tot_fra)[names(vacsi_res_tot_fra) == "res_vac_tot_dose1"] <- "n_tot_dose1"
 names(vacsi_res_tot_fra)[names(vacsi_res_tot_fra) == "res_vac_tot_dose2"] <- "n_tot_dose2"
 
-#Supprimer les colonnes non essentielles
+# Supprimer les colonnes non essentielles
 vacsi_res_tot_fra <- vacsi_res_tot_fra[ -c(5, 6) ]
 
-#Lier les deux dataframes
+# Lier les deux dataframes
 vacsi_res_tot_fra <- vacsi_res_tot_fra %>%
   rbind(vacsi_tot_a_fra)
 
-#Supprimer les colonnes non essentielles
+# Supprimer les colonnes non essentielles
 vacsi_res_tot_fra <- vacsi_res_tot_fra[ -c(1, 2) ]
 
 classe_age2 <- c("59","64","69","79","80","99")
 
-#Passer en format long et ne garder que les indes importants
+# Passer en format long et ne garder que les indes importants
 df <- melt(vacsi_res_tot_fra,  id.vars = "clage_vacsi", variable.name = "series") %>%
   filter(clage_vacsi %in%  classe_age2)
 
 ```
 
-
 ```{r}
-#Make a stacked bar chart
+# Make a stacked bar chart
 
 p2 <- ggplot(data = df,
             aes(x = as.character(clage_vacsi),
@@ -224,14 +231,11 @@ p2
  
 ```
 
-
-
-
 ```{r}
-# Pr?paration des donn?es pour des graphique comparant l'avancement de la vaccination par r?gions et par tranches d'ages, en pourcentage de la population concern?e
-# Beaucoup d'?tapes !
+# Preparation des donn?es pour des graphique comparant l'avancement de la vaccination par r?gions et par tranches d'ages, en pourcentage de la population concernee
+# Beaucoup d'etapes !
 
-# D'abord importer les donn?es INSEE avec la population par r?gions et le code r?gion
+# D'abord importer les donnees INSEE avec la population par regions et le code region
 
 reg_pop <- read.csv("population_regions.csv",
                     sep = ",",
@@ -254,7 +258,6 @@ df2 <-left_join(df2, reg_pop, by = "reg") %>%
   na.omit(df2) %>%
   mutate(`%_population_dose1` = round(n_tot_dose1/(as.numeric(pop_total))*100, digits = 2)) %>%
   mutate(`%_population_dose2` = round(n_tot_dose2/(as.numeric(pop_total))*100, digits = 2))
-  
 
 df2 <- df2[ c(6, 11, 12) ]
 
@@ -262,7 +265,7 @@ df2 <- melt(df2,  id.vars = "noms", variable.name = "series")
 ```
 
 ```{r}
-# Donnees pour la tranche d'age 40-59 ans comme class?s par l'INSEE
+# Donnees pour la tranche d'age 40-59 ans comme classes par l'INSEE
 
 # Les tranches d'ages sont decoupees differemment sur data.gouv
 # Il faut rassembler les classes d'age 49 et 59, 69 et74, 79 et 80 pour correspondre avec le classement INSEE
@@ -283,7 +286,6 @@ df3 <- df3[ c(4, 9, 10) ]
 
 df3 <- melt(df3,  id.vars = "noms", variable.name = "series")
 ```
-
 
 ```{r}
 # 60-74 ans
@@ -321,9 +323,8 @@ df5 <- df5[ c(4, 9, 10) ]
 df5 <- melt(df5,  id.vars = "noms", variable.name = "series")
 ```
 
-
 ```{r}
-#Graphique comparant les doses administr?es en poucentage de la population totale
+# Graphique comparant les doses administr?es en poucentage de la population totale
 
 p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -353,7 +354,7 @@ p3
 ```
 
 ```{r}
-#Graphique comparant les doses administr?es en poucentage de la population des 40-59 ans
+# Graphique comparant les doses administr?es en poucentage de la population des 40-59 ans
 
 p4 <- ggplot(df3, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -383,7 +384,7 @@ p4
 ```
 
 ```{r}
-#Graphique comparant les doses administr?es en poucentage de la population des 60-74 ans
+# Graphique comparant les doses administr?es en poucentage de la population des 60-74 ans
 
 p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -413,7 +414,7 @@ p5
 ```
 
 ```{r}
-#Graphique comparant les doses administr?es en poucentage de la population des 75 ans et plus
+# Graphique comparant les doses administr?es en poucentage de la population des 75 ans et plus
 
 p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -453,9 +454,8 @@ df6 <- df6[ c(7,5,6) ]
 df6 <- melt(df6,  id.vars = "noms", variable.name = "series")
 ```
 
-
 ```{r}
-#Graphique comparant les doses administr?es en poucentage de la population des 75 ans et plus
+# Graphique comparant les doses administrees en poucentage de la population des 75 ans et plus
 
 p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -464,7 +464,7 @@ p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
   labs(title="COVID-19 | Vaccination en France",
-       subtitle = "Etat de la vaccination en % de la population r?sident en EHPAD",
+       subtitle = "Etat de la vaccination en % de la population resident en EHPAD",
        caption = "Source : data.gouv.fr") +
   theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
                                   margin = margin(t = -0.1, unit = "cm")),
