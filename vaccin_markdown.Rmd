@@ -67,24 +67,24 @@ Geodes propose le total des secondes injections par jour. Les récuperer se fait
 
 ```{r include=FALSE}
 # Attention : "vacsi_a_fra" (vaccination age quotidien) ne mentionne pas la seconde dose !
-# Il faut retrouver ces data sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
+# Il faut d'abord retrouver ces donnees sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
 
-# Importer les data de seconde vaccination par jour - disponibles sur Geodes
-# Les passer du format wide au format long et les combiner aux data "vacsi_a_fra"
+# Creer un variable "vacsi_a_fra_dose2" et y importer les donnees de seconde vaccination par jour de Geodes
 
-
-vacsi_a_fra_dose2 <- read.csv("vacsi_a_fra_dose2.csv", header = T) %>%
-  pivot_longer(c(2:12), names_to ="clage_vacsi") %>%
+vacsi_a_fra_dose2 <- read.csv("geodes.csv", header = T) %>%
+  pivot_longer(c(2:12), names_to ="clage_vacsi") %>% # passer du format wide au format long
   arrange(clage_vacsi)
+
+# Enlever les X qui venaient du nom des colonnes
 
 vacsi_a_fra_dose2$clage_vacsi <- stringr::str_replace(vacsi_a_fra_dose2$clage_vacsi, "X", "") %>%
   as.numeric(vacsi_a_fra_dose2$clage_vacsi)
 
+# Combiner aux data "vacsi_a_fra" dans une nouvelle variable appelee "vacsi_a_fra_2doses"
+
 vacsi_a_fra_2doses <- left_join(vacsi_a_fra, vacsi_a_fra_dose2, by=c("jour"="jour", "clage_vacsi"="clage_vacsi")) %>%
   rename(n_cum_dose2 = value)
-```
 
-```{r include=FALSE}
 # Calculer le nombre journalier de vaccination 2
 
 vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
@@ -92,13 +92,65 @@ vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
   arrange(clage_vacsi, jour) %>%
   mutate(n_dose2 = n_cum_dose2-lag(n_cum_dose2))
 
-vacsi_a_fra_2doses[vacsi_a_fra_2doses<0] <- 0 # petit truc pour r?gler un bug avec la fonction lag
+vacsi_a_fra_2doses[vacsi_a_fra_2doses<0] <- 0 # petit truc pour regler un bug avec la fonction lag
 
-classe_age <- c("59","64","69","79","80") # cr?er un vecteur avec les classes d'?ges ? garder
-
-vacsi_a_fra_2doses <- vacsi_a_fra_2doses %>%
-  filter(clage_vacsi %in%  classe_age)
 ```
+
+```{r}
+# Maintenant nous avons une base de donnees "vacsi_a_fra_2doses" qui comprend les deux injections par jour et par tranche d'age.
+# Il faut faire correspondre les tranches d'age de data.gouv.fr avec les tranches de l'INSEE
+# Donc assimiler les tranches 49 et 59, 69 et 74, 79 et 80
+
+dt1 <- vacsi_a_fra_2doses %>%
+  filter(clage_vacsi %in% c(49, 59)) %>%
+  mutate(jour = ymd(jour)) %>%
+  group_by(jour) %>%
+  summarise(cum_dose1 = sum(n_cum_dose1), cum_dose2 = sum(n_cum_dose2))
+
+clagedt1 <- c("49_59")
+
+dt1$clage_vacsi <- clagedt1
+
+dt2 <- vacsi_a_fra_2doses %>%
+  filter(clage_vacsi %in% c(69, 74)) %>%
+  mutate(jour = ymd(jour)) %>%
+  group_by(jour) %>%
+  summarise(cum_dose1 = sum(n_cum_dose1), cum_dose2 = sum(n_cum_dose2))
+
+clagedt2 <- c("69_74")
+
+dt2$clage_vacsi <- clagedt2
+
+dt3 <- vacsi_a_fra_2doses %>%
+  filter(clage_vacsi %in% c(79, 80)) %>%
+  group_by(jour) %>%
+  summarise(cum_dose1 = sum(n_cum_dose1), cum_dose2 = sum(n_cum_dose2))
+
+clagedt3 <- c("79_80")
+
+dt3$clage_vacsi <- clagedt3
+
+# Avant de réassembler "vacsi_a_fra_2doses" avec les nouvelles classes d'age, transformer les donnees ehpad pour qu'elles soient compatibles avec "vacsi_a_fra_2doses"
+
+# Netoyage des donnees ehpad :
+# Inventer/ajouter un nouvel index pour les ehpad
+ehpad_code_age <- c("FR99")
+# Mettre cet index dans une nouvelle colonne
+vacsi_res_fra$clage_vacsi <- ehpad_code_age
+# Garder les colonnes utiles pour fusionner toutes les dataframes
+vacsi_res_fra <- vacsi_res_fra [ c(2,5,6,7) ]
+# Renommer les colonnes pour correspondre avec les autres dt
+names(vacsi_res_fra)[names(vacsi_res_fra) == "res_vac_cum_dose1"] <- "cum_dose1"
+names(vacsi_res_fra)[names(vacsi_res_fra) == "res_vac_cum_dose2"] <- "cum_dose2"
+
+vacsi_res_fra <- vacsi_res_fra %>%
+  mutate(jour = ymd(jour))
+
+#Assembler les donnees
+
+vacsi_a_fra_2doses <- rbind(dt1, dt2, dt3, vacsi_res_fra)
+```
+
 
 ```{r include=FALSE}
 # Importer les libraries pour construire un graphique
@@ -123,12 +175,12 @@ La vaccination pour la dose 1 a commence le 27 decembre 2020 en ordre plutot dis
 ```{r echo=FALSE}
 # Courbes de la campagne de vaccination dose 1
 
-colours <- c('#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2')
+colours <- c('#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd')
 
-p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = n_cum_dose1, colour=as.character(clage_vacsi)))+
+p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = cum_dose1, colour=as.character(clage_vacsi)))+
   geom_line(size = 1.2) +
-  scale_colour_manual(values = c('#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00'),
-                      labels = c("50-59 ans", "60-64 ans", "65-69 ans", "70-79 ans", "+ de 80 ans")) +
+  scale_colour_manual(values = c('#450256','#F9E721','#21908D','#5AC865'),
+                      labels = c("40-59 ans", "60-74 ans", "75 et plus", "EHPAD")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
   labs(title="COVID-19 - Vaccination",
@@ -144,7 +196,7 @@ p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = n_cum_dose1, colour=as.charact
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,800000), labels=function(x) format(x, big.mark = " ", scientific = FALSE))
+  scale_y_continuous(limit = c(0,1200000), labels=function(x) format(x, big.mark = " ", scientific = FALSE))
 p
 ```
 
@@ -160,11 +212,11 @@ Les courbes sont plus franches, le groupe des 50-59 ans a le plus largement bene
 
 df <- subset(vacsi_a_fra_2doses, vacsi_a_fra_2doses$jour > as.Date("2021-01-23"))
 
-p <- ggplot(df, aes(x = jour, y = n_cum_dose2, colour = as.character(clage_vacsi))) +
-  geom_line(size = 1.2) +
+p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))) +
+  geom_line(size = 1.2) + #aes(linetype=clage_vacsi)
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
-  scale_colour_manual(values = c('#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00'),
-                      labels = c("50-59 ans", "60-64 ans", "65-69 ans", "70-79 ans", "+ de 80 ans")) +
+  scale_colour_manual(values = c('#450256','#F9E721','#21908D','#5AC865'),
+                      labels = c("40-59 ans", "60-74 ans", "75 et plus", "EHPAD")) +
   bbc_style() +
   labs(title="COVID-19 - Vaccination",
        subtitle = "par groupes d'ages, en valeurs absolues - dose 2",
@@ -179,7 +231,7 @@ p <- ggplot(df, aes(x = jour, y = n_cum_dose2, colour = as.character(clage_vacsi
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,90000), labels=function(x) format(x, big.mark = " ", scientific = FALSE))
+  scale_y_continuous(limit = c(0,120000), labels=function(x) format(x, big.mark = " ", scientific = FALSE))
 p
 ```
 
@@ -282,7 +334,7 @@ reg_pop <- read.csv("population_regions.csv",
 
 ```{r include=FALSE}
 # Population totale (indice 0) dans les data de data.gouv
-# Assembler avec les donn?es INSEE
+# Assembler avec les donnees INSEE
 
 df2 <- vacsi_tot_a_reg %>%
   filter(clage_vacsi == 0)
