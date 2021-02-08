@@ -7,7 +7,7 @@ knit: (function(input_file, encoding) {
  output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
 output: html_document
 ---
-# Etat des lieux de la vaccination en France
+## Etat des lieux de la vaccination en France
 
 Ce "markdown" est dedie a la datavisualisation des donnees sur la vacination contre le COVID-19.
 
@@ -28,7 +28,7 @@ library(zoo)
 library(reshape2)
 ```
 
-##### Ci-dessous, les sources pour les données de vaccination :
+#### Ci-dessous, les sources pour les données de vaccination :
 
 ```{r echo=TRUE}
 # Liens de telechargement vers les donnees de data.gouv.fr
@@ -116,7 +116,7 @@ pacman::p_load('dplyr', 'tidyr', 'gapminder',
 library(extrafont)
 ```
 
-# Courbes de la campagne de vaccination dose 1
+## Courbes de la campagne de vaccination dose 1
 
 La vaccination pour la dose 1 a commence le 27 decembre 2020 en ordre plutot disperse.
 
@@ -148,7 +148,7 @@ p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = n_cum_dose1, colour=as.charact
 p
 ```
 
-# Courbes de la campagne de vaccination dose 2
+## Courbes de la campagne de vaccination dose 2
 
 L'administration de la deuxieme dose a commence le 26 janvier.
 
@@ -183,7 +183,7 @@ p <- ggplot(df, aes(x = jour, y = n_cum_dose2, colour = as.character(clage_vacsi
 p
 ```
 
-# Part de la dose 2 par rapport a la dose 1
+## Part de la dose 2 par rapport a la dose 1
 
 ```{r include=FALSE}
 # Stacked bar chart - part de la dose 2 par rapport a la dose 1
@@ -256,7 +256,7 @@ p2
  
 ```
 
-# Analyse en proportion de la population
+## Analyse en proportion de la population
 
 Les graphiques en % permettent de mettre chaque region et char tranche d'age au meme niveau.
 
