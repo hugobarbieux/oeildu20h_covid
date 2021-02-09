@@ -345,7 +345,9 @@ dt7 <- melt(dt7,  id.vars = "clage_vacsi", variable.name = "series") #%>%
 
 Ce graphique représente la part de doses 2 par rapport à la dose 1 par groupe d'age, au niveau national.
 
-Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 40-59 ans... beaucoup mois avec les 75 ans et plus.
+Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 50-59 ans.
+
+Beaucoup mois avec les 70-79 ans et les + de 80 ans.
 
 
 
@@ -685,4 +687,3 @@ p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 
 p7
 ```
-
