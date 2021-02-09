@@ -251,7 +251,7 @@ dose_2_vline <- which(df$jour %in% dose_2_vline)
 
 p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))) +
   geom_line(size = 1.2) + #aes(linetype=clage_vacsi)
-  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  geom_hline(yintercept = 0, size = 1.2, colour="#767676") +
   scale_colour_manual(values = c('#450256','#F9E721','#21908D','#5AC865'),
                       labels = c("40-59 ans", "60-74 ans", "75 ans et plus", "EHPAD")) +
   bbc_style() +
@@ -280,6 +280,62 @@ p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))
                            family="Brown", 
                            size = 3)
 p
+```
+
+
+## Superposition des deux graphiques
+
+Alignement des courbes des doses 1 et 2 pour comparer le suivi des injections
+
+```{r echo=FALSE}
+#Faire "remonter" les dates de seconde vaccination 21 jours plus tôt pour voir si les courbes se suivent
+dt1_bis <- dt1 %>% mutate_at(c("cum_dose2"), funs(lead), n = 21 )
+dt2_bis <- dt2 %>% mutate_at(c("cum_dose2"), funs(lead), n = 21 )
+dt3_bis <- dt3 %>% mutate_at(c("cum_dose2"), funs(lead), n = 21 )
+vacsi_res_fra_bis <- vacsi_res_fra %>% mutate_at(c("cum_dose2"), funs(lead), n = 21 )
+
+#Reconstituer la dataframe dans une nouvelle variable et conserver seulement certaines dates pour "zoomer" dans la période intéressante
+vacsi_a_fra_2doses_bis <- rbind(dt1_bis, dt2_bis, dt3_bis, vacsi_res_fra_bis)
+
+vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour < as.Date("2021-01-18"))
+
+vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour > as.Date("2021-01-04"))
+  
+#Faire le graphique avec les valeurs modifiées en pointillés
+
+p <- ggplot(vacsi_a_fra_2doses_bis, aes(x = jour, colour=as.character(clage_vacsi)))+
+  geom_line(aes(y = cum_dose1),  size = 1.2) +
+  geom_line(aes(y = cum_dose2), linetype="dotted", size = 1.2) +
+  scale_colour_manual(values = c('#450256','#F9E721','#21908D','#5AC865'),
+                      labels = c("40-59 ans", "60-74 ans", "75 ans et plus", "EHPAD")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 - Vaccination",
+       subtitle = "Comparaisons des trajectoires des vaccinations 1 et 2",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.03, b = -0.2, unit = "cm")),
+        legend.text = element_text(size = 9, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 9, color = "#767676"),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_line(color = "#d9dddc"),
+        panel.grid.major.x = element_line(color = "#d9dddc")) +
+  scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
+  scale_y_continuous(limit = c(0,200000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  #geom_vline(xintercept = as.numeric(vacsi_a_fra_2doses$jour[dose_1_vline]),
+             #col = "black", lwd = 0.5) +
+  geom_label(aes(x = as.Date(c("2021-01-06")), y = 150000, label = "Les trajectoires des\nsecondes vaccinations\n(en pointillés)\nont ete ramenees\nartificiellement 21 jours\nplus tot pour suivre\nles premieres series\nd'injections"), 
+                           hjust = "left", 
+                           vjust = 0.5, 
+                           colour = "#696969", 
+                           fill = "transparent", 
+                           label.size = NA, 
+                           family="Brown", 
+                           size = 3.5)
+p
+
 ```
 
 
