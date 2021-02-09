@@ -21,6 +21,7 @@ Le but : voir si la vaccination privilegie un groupe de personnes et si les depa
 #install.packages("lubridate")
 #install.packages("zoo")
 #install.packages("reshape2")
+#install.packages("viridis")
 #install.packages("timetk")
 library(tidyverse)
 library(lubridate)
@@ -61,7 +62,7 @@ vacsi_a_fra <- read.csv(url3) %>%
 vacsi_tot_a_fra <- read.csv(url4)
 vacsi_tot_a_reg <- read.csv(url5) # colClasses = c(reg = "character"))
 vacsi_res_tot_reg_fra <- read.csv(url6)
-sp_pos_quot_fra <- read.csv(url7, sep = ";")
+sp_pos_quot_fra <- read.csv(url7, sep = ";", colClasses = c(cl_age90 = "character"))
 ```
 
 
@@ -695,7 +696,7 @@ p7
 
 ## Part des soignants de 50 ans et plus dans la population
 
-```{r}
+```{r echo=FALSE}
 # Donut chart pour comparer population de soignants par rapport à la population générale
 
 # Create dataframe
@@ -728,9 +729,9 @@ p8 <- ggplot(data, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=category)) +
 p8
 ```
 
-## Evolution du taux d'incidence par classe d'age
+## Evolution du taux d'incidence par groupe d'ages
 
-```{r}
+```{r echo=FALSE}
 # Reorganiser les classes d'age comme plus haut
 #dt8 <- sp_pos_quot_fra %>%
 #  filter(cl_age90 %in% c(49, 59)) %>%
@@ -754,6 +755,7 @@ dt8 <- dt8 %>%
   arrange(cl_age90) %>%
   mutate(somme = P + lag(P,1) + lag(P,2) + lag(P,3)+ lag(P,4)+ lag(P,5)+ lag(P,6)) %>%
   group_by(cl_age90, pop) %>%
+  filter(jour > as.Date("2020-06-29")) %>%
   summarise_by_time (.date_var = jour,
                      .by = "week",
                      mean = mean(somme)) %>%
@@ -777,31 +779,38 @@ m <- dt8 %>%
 # Build a further modified heat map
 
 textcol <- "grey40"
+#plasma(20)
 
-p2 <- ggplot(dt8, aes(x = jour, y = as.character(cl_age90), fill = incid))+
+p2 <- ggplot(m, aes(x = jour, y = as.character(cl_age90), fill = incidfactor))+
   geom_tile(colour="white",size=0.2)+
   guides(fill=guide_legend(title="par 100k hab."))+
   labs(x="",y="",
        title="Evolution des taux d'incidence",
        subtitle = "Par classe d'ages par semaine glissante")+
-  scale_y_discrete(expand=c(0,0))+
+  scale_y_discrete(expand=c(0,0),
+                   labels=c("0-9 ans","9-19 ans","20-29 ans","30-39 ans","40-49 ans","50-59 ans","60-69 ans",
+                            "70-79 ans","80-89 ans","+ de 80 ans"))+
   scale_x_date(expand=c(0,0), breaks = "week", date_labels = "%d %b") +
-  scale_fill_viridis(option = "plasma") +#(values=c("#b30000","#d7301f","#ef6548","#fc8d59","#fdbb84","#fdd49e","#fee8c8", "#fff7ec"),na.value = "grey90")+
+  scale_fill_manual(values=c("#0D0887FF","#2D0594FF","#44039EFF","#5901A5FF","#6F00A8FF",
+                             "#8305A7FF","#9512A1FF","#A72197FF","#B6308BFF","#C5407EFF",
+                             "#D14E72FF","#DD5E66FF","#E76E5BFF","#EF7F4FFF","#F79044FF",
+                             "#FBA238FF","#FEB72DFF","#FDCB26FF","#F7E225FF","#F0F921FF"),na.value = "grey90")+
   theme_grey(base_size=10)+
-  theme(legend.position="right",legend.direction="vertical",
+  theme(plot.title=element_text(colour="#444444",hjust=0,size=16,family = "Brown"),
+        plot.subtitle = element_text(colour="#444444",hjust=0,size=12,family = "Brown"),
+        legend.position="right",legend.direction="vertical",
         legend.title=element_text(colour=textcol),
         legend.margin=margin(grid::unit(0,"cm")),
         legend.text=element_text(colour=textcol,size=7,family = "Brown"),
-        legend.key.height=grid::unit(0.8,"cm"),
+        legend.key.height=grid::unit(0.2,"cm"),
         legend.key.width=grid::unit(0.2,"cm"),
         axis.text.x=element_text(size=8,colour=textcol,family = "Brown", angle = 50, hjust = 1),
-        axis.text.y=element_text(size=10, vjust=0.2,colour=textcol,family = "Brown"),
+        axis.text.y=element_text(size=8, vjust=0.2,colour=textcol,family = "Brown"),
         axis.ticks=element_line(size=0.4),
         plot.background=element_blank(),
-        panel.border=element_blank(),
-        #plot.margin=margin(0.7,0.4,0.1,0.2,"cm"),
-        plot.title=element_text(colour="#444444",hjust=0,size=20,family = "Brown"),
-        plot.subtitle = element_text(colour="#444444",hjust=0,size=16,family = "Brown"))
+        panel.border=element_blank())
+        #plot.margin=margin(0.7,0.4,0.1,0.2,"cm")
+        
 
 p2
 
