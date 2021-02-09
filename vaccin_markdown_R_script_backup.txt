@@ -21,10 +21,14 @@ Le but : voir si la vaccination privilegie un groupe de personnes et si les depa
 #install.packages("lubridate")
 #install.packages("zoo")
 #install.packages("reshape2")
+#install.packages("viridis")
+#install.packages("timetk")
 library(tidyverse)
 library(lubridate)
 library(zoo)
 library(reshape2)
+library(viridis)
+library(timetk)
 ```
 
 #### Ci-dessous, les sources pour les données de vaccination :
@@ -44,6 +48,8 @@ url4 <- "https://www.data.gouv.fr/fr/datasets/r/dc103057-d933-4e4b-bdbf-36d312af
 url5 <- "https://www.data.gouv.fr/fr/datasets/r/2dadbaa7-02ae-43df-92bb-53a82e790cb2"
 #nombre de residents en EHPAD ayant re?u au moins une dose ou deux doses ainsi que la couverture vaccinale, arrete la derniere date disponible, echelle regionale
 url6 <-"https://www.data.gouv.fr/fr/datasets/r/5cb5a964-a8f7-4111-b527-1a2d48dee3d4"
+#nombre de personnes testées et le nombre de personnes déclarées positives par sexe et classe d'âge
+url7 <- "https://www.data.gouv.fr/fr/datasets/r/dd0de5d9-b5a5-4503-930a-7b08dc0adc7c"
 ```
 
 ```{r include=FALSE}
@@ -56,6 +62,7 @@ vacsi_a_fra <- read.csv(url3) %>%
 vacsi_tot_a_fra <- read.csv(url4)
 vacsi_tot_a_reg <- read.csv(url5) # colClasses = c(reg = "character"))
 vacsi_res_tot_reg_fra <- read.csv(url6)
+sp_pos_quot_fra <- read.csv(url7, sep = ";", colClasses = c(cl_age90 = "character"))
 ```
 
 
@@ -192,11 +199,11 @@ colours <- c('#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f59
 p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = cum_dose1, colour=as.character(clage_vacsi)))+
   geom_line(size = 1.2) +
   scale_colour_manual(values = c('#450256','#F9E721','#21908D','#5AC865'),
-                      labels = c("40-59 ans", "60-74 ans", "75 et plus", "EHPAD")) +
+                      labels = c("40-59 ans", "60-74 ans", "75 ans et plus", "EHPAD")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
   labs(title="COVID-19 - Vaccination",
-       subtitle = "par groupes d'ages, en valeurs absolues - dose 1",
+       subtitle = "par groupe d'ages, en valeurs absolues - dose 1",
        caption = "Source : data.gouv.fr") +
   theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
                                   margin = margin(t = -0.1, unit = "cm")),
@@ -246,10 +253,10 @@ p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))
   geom_line(size = 1.2) + #aes(linetype=clage_vacsi)
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   scale_colour_manual(values = c('#450256','#F9E721','#21908D','#5AC865'),
-                      labels = c("40-59 ans", "60-74 ans", "75 et plus", "EHPAD")) +
+                      labels = c("40-59 ans", "60-74 ans", "75 ans et plus", "EHPAD")) +
   bbc_style() +
   labs(title="COVID-19 - Vaccination",
-       subtitle = "par groupes d'ages, en valeurs absolues - dose 2",
+       subtitle = "par groupe d'ages, en valeurs absolues - dose 2",
        caption = "Source : data.gouv.fr") +
   theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
                                   margin = margin(t = -0.1, unit = "cm")),
@@ -345,9 +352,7 @@ dt7 <- melt(dt7,  id.vars = "clage_vacsi", variable.name = "series") #%>%
 
 Ce graphique représente la part de doses 2 par rapport à la dose 1 par groupe d'age, au niveau national.
 
-Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 50-59 ans.
-
-Beaucoup mois avec les 70-79 ans et les + de 80 ans.
+Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 40-59 ans... beaucoup mois avec les 75 ans et plus.
 
 
 
@@ -360,14 +365,14 @@ p2 <- ggplot(data = dt7,
                 fill = series)) +
   geom_bar(stat = "identity", 
            position = "fill") +
-  scale_fill_manual(values = c("#450256", "#F9E721"),
+  scale_fill_manual(values = c("#31688e", "#fde624"),
                     labels = c("1ere dose", "2nde dose")) +
   scale_x_discrete(labels  = c("40-59 ans", "60-74 ans", "75 ans et plus", "EHPAD")) +
   bbc_style() +
   scale_y_continuous(labels = scales::percent) +
   geom_hline(yintercept = 0, size = 1, colour = "#333333") +
   labs(title = "COVID-19 - Vaccination",
-       subtitle = "Ratio de doses administrees pour les classes d'age representees",
+       subtitle = "Ratio de doses administrees pour les groupes d'ages representes",
        caption = "Source : data.gouv.fr") +
   theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown"),
         plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
@@ -500,7 +505,7 @@ On constate aussi des disparites entre les regions.
 
 p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual(values = c("#450256", "#F9E721"),
+  scale_fill_manual(values = c("#31688e", "#fde624"),
                     labels = c("1ere dose", "2nde dose")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
@@ -538,7 +543,7 @@ Bien que pour chaque region, moins de 3% des 40-59 ans sont accines (au 5 fevrie
 
 p4 <- ggplot(df3, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual(values = c("#450256", "#F9E721"),
+  scale_fill_manual(values = c("#31688e", "#fde624"),
                     labels = c("1ere dose", "2nde dose")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
@@ -576,7 +581,7 @@ Surtout à Mayotte, ou plus de 3% de ce groupe a recu la premiere dose et presqu
 
 p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual(values = c("#450256", "#F9E721"),
+  scale_fill_manual(values = c("#31688e", "#fde624"),
                     labels = c("1ere dose", "2nde dose")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
@@ -614,7 +619,7 @@ Notez que l'echelle a change et va de 0 a 30%.
 
 p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual(values = c("#450256", "#F9E721"),
+  scale_fill_manual(values = c("#31688e", "#fde624"),
                     labels = c("1ere dose", "2nde dose")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
@@ -663,7 +668,7 @@ df6 <- melt(df6,  id.vars = "noms", variable.name = "series")
 
 p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
-  scale_fill_manual(values = c("#450256", "#F9E721"),
+  scale_fill_manual(values = c("#31688e", "#fde624"),
                     labels = c("1ere dose", "2nde dose")) +
   geom_hline(yintercept = 0, size = 1, colour="#767676") +
   bbc_style() +
@@ -687,3 +692,130 @@ p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
 
 p7
 ```
+
+
+## Part des soignants de 50 ans et plus dans la population
+
+```{r echo=FALSE}
+# Donut chart pour comparer population de soignants par rapport à la population générale
+
+# Create dataframe
+data <- data.frame(
+  category=c("Personnel de sante\n+ 50 ans", "Reste de la population"),
+  count=c(535630,67422241)
+)
+
+# Compute percentages
+data$fraction = data$count / sum(data$count)
+# Compute the cumulative percentages (top of each rectangle)
+data$ymax = cumsum(data$fraction)
+# Compute the bottom of each rectangle
+data$ymin = c(0, head(data$ymax, n=-1))
+# Compute label position
+data$labelPosition <- (data$ymax + data$ymin) / 2
+# Compute a good label
+data$label <- paste0(data$category,"\n", data$count)
+
+# Make the plot
+p8 <- ggplot(data, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=category)) +
+  geom_rect() +
+  scale_fill_manual(values = c("#fde624", "#31688e")) +
+  geom_text(x=1.3, aes(y=labelPosition, label=label, family = "Brown"), size=4) + # x here controls label position (inner / outer)
+  coord_polar(theta="y") + # Try to remove that to understand how the chart is built initially
+  xlim(c(0.5, 4)) + # Try to remove that to see how to make a pie chart
+  theme_void() +
+  theme(legend.position = "none")
+
+p8
+```
+
+## Evolution du taux d'incidence par groupe d'ages
+
+Le taux d'incidence moyen hebdomadaire reste eleve chez les + de 80 ans.
+
+```{r echo=FALSE}
+# Reorganiser les classes d'age comme plus haut
+#dt8 <- sp_pos_quot_fra %>%
+#  filter(cl_age90 %in% c(49, 59)) %>%
+#  mutate(jour = ymd(jour)) %>%
+#  group_by(jour) %>%
+#  summarise(P = sum(P))
+
+#clagedt8 <- c("49_59")
+#dt8$cl_age49_59 <- clagedt8
+
+# Selectionner les colonnes et les valeurs utiles dans les donnees de taux d'incidence et les mettre dans une nouvelle variable
+dt8 <- sp_pos_quot_fra[ c(2,5,9,10) ]
+
+dt8 <- dt8 %>%
+  filter(cl_age90 != c("0"))
+
+
+# Faire le taux d'incidence sur 7 jours
+dt8 <- dt8 %>%
+  mutate(jour = ymd(jour)) %>%
+  arrange(cl_age90) %>%
+  mutate(somme = P + lag(P,1) + lag(P,2) + lag(P,3)+ lag(P,4)+ lag(P,5)+ lag(P,6)) %>%
+  group_by(cl_age90, pop) %>%
+  filter(jour > as.Date("2020-06-29")) %>%
+  summarise_by_time (.date_var = jour,
+                     .by = "week",
+                     mean = mean(somme)) %>%
+  mutate(incid = round(mean/pop*100000))
+
+# Prerparer les donnees pour la carte de chaleur
+
+m <- dt8 %>%
+  # convert "cl_age90" to factor and reverse order of levels
+  mutate(cl_age90=factor(cl_age90,levels=rev(sort(unique(cl_age90))))) %>%
+  # create a new variable from incid
+  mutate(incidfactor=cut(incid,breaks=c(-1,0,10,20,50,100,150,200,250,300,350,400,450,500,550,
+                                        600,650,700,750,800,max(incid,na.rm=T)),
+                         labels=c("0","0-10","10-20","20-50","50-100","100-150",
+                                  "150-200","200-250","250-300","300-350",
+                                  "350-400","400-450", "450-500","500-550","550-600",
+                                  "600-650", "650-700","700-750","750-800","< 800")))
+  # change level order
+  #mutate(incidfactor=factor(as.character(incidfactor),levels=rev(levels(incidfactor))))
+
+# Build a further modified heat map
+
+textcol <- "grey40"
+#plasma(20)
+
+p2 <- ggplot(m, aes(x = jour, y = as.character(cl_age90), fill = incidfactor))+
+  geom_tile(colour="white",size=0.2)+
+  guides(fill=guide_legend(title="par 100k hab."))+
+  labs(x="",y="",
+       title="Evolution des taux d'incidence",
+       subtitle = "Par classe d'ages par semaine glissante")+
+  scale_y_discrete(expand=c(0,0),
+                   labels=c("0-9 ans","9-19 ans","20-29 ans","30-39 ans","40-49 ans","50-59 ans","60-69 ans",
+                            "70-79 ans","80-89 ans","+ de 80 ans"))+
+  scale_x_date(expand=c(0,0), breaks = "week", date_labels = "%d %b") +
+  scale_fill_manual(values=c("#0D0887FF","#2D0594FF","#44039EFF","#5901A5FF","#6F00A8FF",
+                             "#8305A7FF","#9512A1FF","#A72197FF","#B6308BFF","#C5407EFF",
+                             "#D14E72FF","#DD5E66FF","#E76E5BFF","#EF7F4FFF","#F79044FF",
+                             "#FBA238FF","#FEB72DFF","#FDCB26FF","#F7E225FF","#F0F921FF"),na.value = "grey90")+
+  theme_grey(base_size=10)+
+  theme(plot.title=element_text(colour="#444444",hjust=0,size=16,family = "Brown"),
+        plot.subtitle = element_text(colour="#444444",hjust=0,size=12,family = "Brown"),
+        legend.position="right",legend.direction="vertical",
+        legend.title=element_text(colour=textcol),
+        legend.margin=margin(grid::unit(0,"cm")),
+        legend.text=element_text(colour=textcol,size=7,family = "Brown"),
+        legend.key.height=grid::unit(0.2,"cm"),
+        legend.key.width=grid::unit(0.2,"cm"),
+        axis.text.x=element_text(size=8,colour=textcol,family = "Brown", angle = 50, hjust = 1),
+        axis.text.y=element_text(size=8, vjust=0.2,colour=textcol,family = "Brown"),
+        axis.ticks=element_line(size=0.4),
+        plot.background=element_blank(),
+        panel.border=element_blank())
+        #plot.margin=margin(0.7,0.4,0.1,0.2,"cm")
+
+        
+
+p2
+
+```
+
