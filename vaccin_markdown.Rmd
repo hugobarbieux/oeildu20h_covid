@@ -31,6 +31,22 @@ library(viridis)
 library(timetk)
 ```
 
+```{r include=FALSE}
+# Importer les libraries pour construire un graphique
+
+#This line of code installs the pacman page if you do not have it installed - if you do, it simply loads the package
+#if(!require(pacman))install.packages("pacman")
+
+pacman::p_load('dplyr', 'tidyr', 'gapminder',
+               'ggplot2',  'ggalt',
+               'forcats', 'R.utils', 'png', 
+               'grid', 'ggpubr', 'scales',
+               'bbplot')
+
+#install.packages(extrafont)
+library(extrafont)
+```
+
 #### Ci-dessous, les sources pour les données de vaccination :
 
 ```{r echo=TRUE}
@@ -50,6 +66,12 @@ url5 <- "https://www.data.gouv.fr/fr/datasets/r/2dadbaa7-02ae-43df-92bb-53a82e79
 url6 <-"https://www.data.gouv.fr/fr/datasets/r/5cb5a964-a8f7-4111-b527-1a2d48dee3d4"
 #nombre de personnes testées et le nombre de personnes déclarées positives par sexe et classe d'âge
 url7 <- "https://www.data.gouv.fr/fr/datasets/r/dd0de5d9-b5a5-4503-930a-7b08dc0adc7c"
+#nombre de personnes ayant reçu au moins une dose, par classes d’age, arrete a la dernière date disponible, echelle departementale
+url8 <- "https://www.data.gouv.fr/fr/datasets/r/de4b356b-8cd9-4b9a-8878-459a62646107"
+#nombre de résidents en EHPAD ayant reçu au moins une dose ou deux doses ainsi que la couverture vaccinale, echelle departementale
+url9 <- "https://www.data.gouv.fr/fr/datasets/r/1cbfd282-e882-479d-afcc-958f09f617ec"
+#livraisons départementales réalisées et prévisionnelles par semaine, en UCD (flacons) et doses comptabilisées comme la somme des différents flux départementaux
+url10 <- "https://www.data.gouv.fr/fr/datasets/r/d9ad34ee-2d05-4f40-965b-9ba40a7d5f83"
 ```
 
 ```{r include=FALSE}
@@ -63,6 +85,9 @@ vacsi_tot_a_fra <- read.csv(url4)
 vacsi_tot_a_reg <- read.csv(url5) # colClasses = c(reg = "character"))
 vacsi_res_tot_reg_fra <- read.csv(url6)
 sp_pos_quot_fra <- read.csv(url7, sep = ";", colClasses = c(cl_age90 = "character"))
+vacsi_tot_a_dep <- read.csv(url8)
+vacsi_res_tot_dep <- read.csv(url9)
+livraisons_realisees_cumul_dep <- read.csv(url10)
 ```
 
 
@@ -74,8 +99,9 @@ Il faut retrouver ces donnees sur Geodes et les ajouter au tableau.
 Geodes propose le total des secondes injections par jour. Les récuperer se fait largement a la main.
 
 
-
 ```{r include=FALSE}
+## TELECHARGEMENT DE DONNEES COMPLEMENTAIRES
+
 # Attention : "vacsi_a_fra" (vaccination age quotidien) ne mentionne pas la seconde dose !
 # Il faut d'abord retrouver ces donnees sur Geodes et les ajouter au tableau - Geodes propose le total des secondes injections par jour.
 
@@ -107,9 +133,65 @@ vacsi_a_fra_2doses[vacsi_a_fra_2doses<0] <- 0 # petit truc pour regler un bug av
 ```
 
 ```{r include=FALSE}
+## TELECHARGEMENT DE DONNEES COMPLEMENTAIRES
+
+# Donnees concernant les deuxiemes doses, par departement
+
+vacsi_tot_a_dep_dose2 <- read.csv("geodes_2.csv", header = T, encoding = "UTF-8", skip = 3) %>%
+  select(dep = c(1), `0`=c(3), `24`=c(4), `29`=c(5), `39`=c(5), `49`=c(7),
+         `59`=c(8), `64`=c(9), `69`=c(10), `74`=c(11), `79`=c(12),`80`=c(13)) %>%
+           na.omit(vacsi_tot_a_dep_dose2) %>%
+  pivot_longer(c(2:12), names_to = "clage_vacsi") %>% # passer du format wide au format long
+  arrange(dep)
+
+vacsi_tot_a_dep_dose2$clage_vacsi <- as.numeric(vacsi_tot_a_dep_dose2$clage_vacsi)
+
+# Lier ces donnees aux donnees de vaccinations doses 1 par département (vacsi_tot_a_dep) dans une nouvelle variable
+
+vacsi_a_dep_2doses <- left_join(vacsi_tot_a_dep, vacsi_tot_a_dep_dose2, by=c("dep"="dep", "clage_vacsi"="clage_vacsi")) %>%
+  rename(n_cum_dose2 = value)
+
+```
+
+```{r include=FALSE}
+## TELECHARGEMENT DE DONNEES COMPLEMENTAIRES
+
+# Preparation des donnees pour des graphique comparant l'avancement de la vaccination par region et par tranche d'ages, en pourcentage de la population concernee
+
+# Importer les donnees INSEE avec la population par region et le code region
+
+reg_pop <- read.csv("population_regions.csv",
+                    sep = ",",
+                    header = TRUE,
+                    encoding = "UTF-8",
+                    skip = 4) %>%
+  select(noms = c(1), reg = c(2), `40_59` = c(5), `60_74` = c(6), `75_plus` = c(7), pop_total = Total) %>%
+  na.omit(reg_pop)
+
+```
+
+```{r include=FALSE}
+## TELECHARGEMENT DE DONNEES COMPLEMENTAIRES
+
+# Preparation des donnees pour des graphique comparant l'avancement de la vaccination par departement
+
+# Importer les donnees INSEE avec la population par departement et le code departement
+
+dep_pop <- read.csv("population_departements.csv",
+                    header = TRUE,
+                    encoding = "UTF-8",
+                    skip = 4) %>%
+  select(dep = c(1), nom = c(2), `40_59` = c(5), `60_74` = c(6), `75_plus` = c(7), pop_total = Total) %>%
+  na.omit(dep_pop)
+
+```
+
+```{r include=FALSE}
+## TRI DONNEES NATIONALES - NOUVELLES TRANCHES D'AGES
+
 # Maintenant nous avons une base de donnees "vacsi_a_fra_2doses" qui comprend les deux injections par jour et par tranche d'age.
 # Il faut faire correspondre les tranches d'age de data.gouv.fr avec les tranches de l'INSEE
-# Donc assimiler les tranches 49 et 59, 69 et 74, 79 et 80
+# Donc assimiler les tranches 49 et 59, 69 et 74, 79 et 80 en créant d'abord 3 "sous-dataframes".
 
 dt1 <- vacsi_a_fra_2doses %>%
   filter(clage_vacsi %in% c(49, 59)) %>%
@@ -140,7 +222,7 @@ clagedt3 <- c("79_80")
 
 dt3$clage_vacsi <- clagedt3
 
-# Avant de réassembler "vacsi_a_fra_2doses" avec les nouvelles classes d'age, transformer les donnees ehpad pour qu'elles soient compatibles avec "vacsi_a_fra_2doses"
+# Avant de reassembler "vacsi_a_fra_2doses" avec les nouvelles classes d'ages, transformer les donnees ehpad pour qu'elles soient compatibles avec "vacsi_a_fra_2doses"
 
 # Netoyage des donnees ehpad :
 # Inventer/ajouter un nouvel index pour les ehpad
@@ -162,23 +244,181 @@ vacsi_a_fra_2doses <- rbind(dt1, dt2, dt3, vacsi_res_fra)
 ```
 
 ```{r include=FALSE}
-# Importer les libraries pour construire un graphique
+## TRI DONNEES DEPARTEMENTALES - NOUVELLES TRANCHES D'AGES
 
-#This line of code installs the pacman page if you do not have it installed - if you do, it simply loads the package
-#if(!require(pacman))install.packages("pacman")
+# Maintenant nous avons une base de donnees "vacsi_a_dep_2doses" qui comprend les deux injections par departement et par tranche d'ages.
+# Il faut faire correspondre les tranches d'age de data.gouv.fr avec les tranches de l'INSEE
+# Donc assimiler les tranches 49 et 59, 69 et 74, 79 et 80
 
-pacman::p_load('dplyr', 'tidyr', 'gapminder',
-               'ggplot2',  'ggalt',
-               'forcats', 'R.utils', 'png', 
-               'grid', 'ggpubr', 'scales',
-               'bbplot')
+dt9 <- vacsi_a_dep_2doses %>%
+  filter(clage_vacsi %in% c(49, 59)) %>% #filtrer par les deux categories d'ages
+  group_by(dep) %>%
+  summarise(tot_dose1 = sum(n_tot_dose1), tot_dose2 = sum(n_cum_dose2))
 
-#install.packages(extrafont)
-library(extrafont)
+clagedt9 <- c("49_59") #creer un nouvel index de classe d'age dans un vecteur
+
+dt9$clage_vacsi <- clagedt9 #associer la valeur de ce vecteur à une nouvelle colonne nommee clage_vacsi
+
+dt9 <-left_join(dt9, dep_pop, by = "dep") %>% #joindre les donnees de vaccination aux donnees de population
+  na.omit(dt9) %>%
+  mutate(`%_population_dose1` = round(tot_dose1/as.numeric((`40_59`))*100, digits = 2)) %>%
+  mutate(`%_population_dose2` = round(tot_dose2/as.numeric((`40_59`))*100, digits = 2))
+
+dt9 <- dt9[ c(5, 10, 11) ]
+
+dt9 <- melt(dt9,  id.vars = "nom", variable.name = "series")
+
+###
+
+dt10 <- vacsi_a_dep_2doses %>%
+  filter(clage_vacsi %in% c(64, 69, 74)) %>%
+  group_by(dep) %>%
+  summarise(tot_dose1 = sum(n_tot_dose1), tot_dose2 = sum(n_cum_dose2))
+
+clagedt10 <- c("60_74")
+
+dt10$clage_vacsi <- clagedt10
+
+dt10 <-left_join(dt10, dep_pop, by = "dep") %>% #joindre les donnees de vaccination aux donnees de population
+  na.omit(dt10) %>%
+  mutate(`%_population_dose1` = round(tot_dose1/(as.numeric(`60_74`))*100, digits = 2)) %>%
+  mutate(`%_population_dose2` = round(tot_dose2/(as.numeric(`60_74`))*100, digits = 2))
+
+dt10 <- dt10[ c(5, 10, 11) ]
+
+dt10 <- melt(dt10,  id.vars = "nom", variable.name = "series")
+
+###
+
+dt11 <- vacsi_a_dep_2doses %>%
+  filter(clage_vacsi %in% c(79, 80)) %>%
+  group_by(dep) %>%
+  summarise(tot_dose1 = sum(n_tot_dose1), tot_dose2 = sum(n_cum_dose2))
+
+clagedt11 <- c("75_plus")
+
+dt11$clage_vacsi <- clagedt11
+
+dt11 <-left_join(dt11, dep_pop, by = "dep") %>% #joindre les donnees de vaccination aux donnees de population
+  na.omit(dt11) %>%
+  mutate(`%_population_dose1` = round(tot_dose1/(as.numeric(`75_plus`))*100, digits = 2)) %>%
+  mutate(`%_population_dose2` = round(tot_dose2/(as.numeric(`75_plus`))*100, digits = 2))
+
+dt11 <- dt11[ c(5, 10, 11) ]
+
+dt11 <- melt(dt11,  id.vars = "nom", variable.name = "series")
+
+# Trier les donnees ehpad par departement "vacsi_res_tot_dep" pour qu'elles soient compatibles avec "vacsi_a_dep_2doses"
+
+# Inventer/ajouter un nouvel index pour les ehpad
+ehpad_code_age <- c("FR99")
+# Mettre cet index dans une nouvelle colonne
+vacsi_res_tot_dep$clage_vacsi <- ehpad_code_age
+
+vacsi_res_tot_dep <-left_join(vacsi_res_tot_dep, dep_pop, by = "dep") %>%
+  na.omit(vacsi_res_tot_dep)
+# Garder les colonnes utiles (couverture vaccinale) pour un graphique proportionnel
+vacsi_res_tot_dep <- vacsi_res_tot_dep [ c(8,5,6) ]
+
+vacsi_res_tot_dep <- melt(vacsi_res_tot_dep,  id.vars = "nom", variable.name = "series")
 ```
 
 
-## Courbes de la campagne de vaccination dose 1
+## Carte des livraisons de vaccins
+
+####Chiffres cumules de livraisons, tous vaccins confondus.
+
+
+```{r include=FALSE}
+library(geojsonio)
+library(rgeos)
+library(broom)
+library(rgdal)
+library(rgdal)
+
+#Load basic background map
+
+dpt_map <- geojson_read("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson", what = "sp")
+
+#Create SpatialPointsDataFrame to export via writeOGR
+centr <- gCentroid(dpt_map, byid = TRUE)
+centr <- SpatialPointsDataFrame(centr, data = dpt_map@data)
+
+writeOGR(centr, "france_dpt_centroids.geojson", layer = "centroid", driver = "GeoJSON")
+
+centroids = geojson_read("france_dpt_centroids.geojson", what = "sp") %>%
+  as.data.frame
+
+#Fortify the data AND keep trace of the departement code!
+
+dpt_fortified <- tidy(dpt_map, region = "code")
+
+# Now I can plot this shape using the geom_polygon() function
+#p = dpt_fortified %>%
+#  ggplot() +
+#  geom_polygon(aes(x = long, y = lat, group = group), fill="grey", color="white") +
+#  theme_void() +
+#  coord_map()
+
+# Faire la somme cumulée des vaccins reçus et mettre le resulata dans une nouvelle variable
+
+livraisonsdf <- livraisons_realisees_cumul_dep %>%
+  group_by(code_departement) %>%
+  filter(date == max(date)) %>%
+  group_by(code_departement) %>%
+  summarise(nb_doses_total = sum(nb_doses))
+
+# Lier les donnes de vaccination aux donnees geographiques
+
+data <- inner_join(livraisonsdf, centroids, by = c("code_departement" = "code")) %>%
+  arrange(nb_doses_total)
+
+# Renomer les colonnes
+
+names(data)[4] <- "lon"
+names(data)[5] <- "lat"
+
+```
+
+
+```{r echo=FALSE}
+mybreaks <- c(10000, 25000, 50000, 75000, 100000, 120000)
+
+mapplot =  ggplot(dpt_fortified) +
+  geom_polygon(aes(x=long, y = lat, group = group),
+               fill="grey",
+               color="white",
+               alpha=0.3) +
+  geom_point(data = data,
+             aes(x=lon, y=lat,
+                 size=nb_doses_total,
+                 color=nb_doses_total,
+                 alpha=nb_doses_total),
+             shape=20,
+             stroke=TRUE) +
+  theme_void() +
+  coord_map() +
+  scale_size_continuous(name="Nbr de doses", trans="log", range=c(1,12), breaks=mybreaks) +
+  scale_alpha_continuous(name="Nbr de doses", trans="log", range=c(0.1, .9), breaks=mybreaks) +
+  scale_color_viridis(option="magma", trans="log", breaks=mybreaks, name="Nbr de doses") +
+  guides( colour = guide_legend() ) +
+  ggtitle("Livraisons de vaccins par departement") +
+  labs(caption = "Source : geodes.santepubliquefrance.fr - data.gouv.fr") +
+  theme(
+    text = element_text(color = "#22211d", family = "Brown"),
+    legend.position = c(-0.1, 0.45),
+    plot.background = element_blank(), 
+    panel.background = element_blank(), 
+    legend.background = element_blank(),
+    plot.caption = element_text(size = 9, color = "#4e4d47", margin = margin(r=1, b = 0.3, unit = "cm")),
+    plot.title = element_text(size= 17, hjust=0.1, color = "#4e4d47", margin = margin(b = -0.1, t = 0.4, l = 2, unit = "cm")))
+
+mapplot
+
+```
+
+
+## Courbes de la campagne de vaccination dose 1 (valeurs absolues)
 
 
 La vaccination pour la dose 1 a commence le 27 decembre 2020 en ordre plutot disperse.
@@ -215,7 +455,7 @@ p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = cum_dose1, colour=as.character
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,1250000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,1280000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   geom_vline(xintercept = as.numeric(vacsi_a_fra_2doses$jour[dose_1_vline]),
              col = "black", lwd = 0.5) +
   geom_label(aes(x = as.Date(c("2021-02-06")), y = 1240000, label = "Introduction du\nvaccin AstraZeneca"), 
@@ -231,12 +471,11 @@ p
 
 
 
-## Courbes de la campagne de vaccination dose 2
+## Courbes de la campagne de vaccination dose 2 (valeurs absolues)
 
 L'administration de la deuxieme dose a commence le 26 janvier.
 
 Les courbes sont plus franches, le groupe des 50-59 ans a le plus largement beneficie de la seconde dose.
-
 
 
 ```{r echo=FALSE}
@@ -268,10 +507,10 @@ p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,125000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,160000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   geom_vline(xintercept = as.numeric(df$jour[dose_2_vline]),
              col = "black", lwd = 0.5) +
-  geom_label(aes(x = as.Date(c("2021-02-06")), y = 122000, label = "Introduction du\nvaccin AstraZeneca"), 
+  geom_label(aes(x = as.Date(c("2021-02-06")), y = 140000, label = "Introduction du\nvaccin AstraZeneca"), 
                            hjust = "right", 
                            vjust = 0.5, 
                            colour = "#555555", 
@@ -297,7 +536,7 @@ vacsi_res_fra_bis <- vacsi_res_fra %>% mutate_at(c("cum_dose2"), funs(lead), n =
 #Reconstituer la dataframe dans une nouvelle variable et conserver seulement certaines dates pour "zoomer" dans la période intéressante
 vacsi_a_fra_2doses_bis <- rbind(dt1_bis, dt2_bis, dt3_bis, vacsi_res_fra_bis)
 
-vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour < as.Date("2021-01-18"))
+vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour < as.Date("2021-01-22"))
 
 vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour > as.Date("2021-01-04"))
   
@@ -323,17 +562,17 @@ p <- ggplot(vacsi_a_fra_2doses_bis, aes(x = jour, colour=as.character(clage_vacs
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,200000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,400000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   #geom_vline(xintercept = as.numeric(vacsi_a_fra_2doses$jour[dose_1_vline]),
              #col = "black", lwd = 0.5) +
-  geom_label(aes(x = as.Date(c("2021-01-06")), y = 150000, label = "Les trajectoires des\nsecondes vaccinations\n(en pointillés)\nont ete ramenees\nartificiellement 21 jours\nplus tot pour suivre\nles premieres series\nd'injections"), 
+  geom_label(aes(x = as.Date(c("2021-01-06")), y = 300000, label = "Les trajectoires des\nsecondes vaccinations\n(en pointillés)\nont ete ramenees\nartificiellement 21 jours\nplus tot pour suivre\nles premieres series\nd'injections"), 
                            hjust = "left", 
                            vjust = 0.5, 
                            colour = "#696969", 
                            fill = "transparent", 
                            label.size = NA, 
                            family="Brown", 
-                           size = 3.5)
+                           size = 3.2)
 p
 
 ```
@@ -405,11 +644,9 @@ dt7 <- melt(dt7,  id.vars = "clage_vacsi", variable.name = "series") #%>%
 ```
 
 
-
 Ce graphique représente la part de doses 2 par rapport à la dose 1 par groupe d'age, au niveau national.
 
 Encore une fois, la campagne de seconde dose a ete plus genereuse avec les 40-59 ans... beaucoup mois avec les 75 ans et plus.
-
 
 
 ```{r echo=FALSE}
@@ -448,32 +685,218 @@ p2
 
 ## Analyse en proportion de la population
 
-Les graphiques en % permettent de mettre chaque region et char tranche d'age au meme niveau.
+Les graphiques en % permettent de mettre chaque region et chaque tranche d'age au meme niveau.
 
 Cette etape est delicate car les groupes d'ages sont repartis differemment sur l'INSEE (donnees de population) et sur data.gouv (donnees de vaccination).
 
 Donc il y a pas mal de netoyage de donnees a faire en amont.
 
 
+### Donnees departemantales
 
-```{r include=FALSE}
-# Preparation des donnees pour des graphique comparant l'avancement de la vaccination par regions et par tranches d'ages, en pourcentage de la population concernee
-# Beaucoup d'etapes !
+```{r echo=FALSE}
+# Graphique comparant les doses administrees dans les departements - 40-59 ans
 
-# D'abord importer les donnees INSEE avec la population par regions et le code region
+deplist1 <- c("Ain","Aisne","Allier","Alpes-de-Haute-Provence","Hautes-Alpes","Alpes-Maritimes","Ardèche","Ardennes","Ariège","Aube",
+              "Aude","Aveyron","Bouches-du-Rhône","Calvados","Cantal","Charente","Charente-Maritime","Cher","Corrèze","Corse-du-Sud",
+              "Haute-Corse","Côte-d'Or","Côtes-d'Armor","Creuse","Dordogne","Doubs","Drôme","Eure","Eure-et-Loir","Finistère","Gard",
+              "Haute-Garonne","Gers","Gironde","Hérault","Ille-et-Vilaine","Indre","Indre-et-Loire","Isère","Jura","Landes",
+              "Loir-et-Cher","Loire","Haute-Loire","Loire-Atlantique","Loiret","Lot","Lot-et-Garonne","Lozère","Maine-et-Loire","Manche")
+deplist2 <- c("Marne","Haute-Marne","Mayenne","Meurthe-et-Moselle","Meuse","Morbihan","Moselle","Nièvre","Nord","Oise","Orne",
+              "Pas-de-Calais","Puy-de-Dôme","Pyrénées-Atlantiques","Hautes-Pyrénées","Pyrénées-Orientales","Bas-Rhin",
+              "Haut-Rhin","Rhône","Haute-Saône","Saône-et-Loire","Sarthe","Savoie","Haute-Savoie","Paris","Seine-Maritime",
+              "Seine-et-Marne","Yvelines","Deux-Sèvres","Somme","Tarn","Tarn-et-Garonne","Var","Vaucluse","Vendée","Vienne",
+              "Haute-Vienne","Vosges","Yonne","Territoire de Belfort","Essonne","Hauts-de-Seine","Seine-Saint-Denis",
+              "Val-de-Marne","Val-d'Oise","Guadeloupe","Martinique","Guyane","La Réunion","Mayotte")
 
-reg_pop <- read.csv("population_regions.csv",
-                    sep = ",",
-                    header = TRUE,
-                    encoding = "UTF-8",
-                    skip = 4) %>%
-  select(noms = c(1), reg = c(2), `40_59` = c(5), `60_74` = c(6), `75_plus` = c(7), pop_total = Total) %>%
-  na.omit(reg_pop)
+p10 <- ggplot(dt9, aes(fill=series, y=value, x=str_wrap(nom, 40))) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values = c("#31688e", "#fde624"),
+                    labels = c("1ere dose", "2nde dose")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 | Vaccination dans les departements",
+       subtitle = "Etat de la vaccination chez les 40-59 ans",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.01, unit = "cm")),
+        legend.text = element_text(size = 8, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 10, color = "#767676"),
+        axis.text.x = element_text(size = 6.5, angle = 50, hjust = 1),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(color = "#cbcbcb"),
+        panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  scale_x_discrete(limits = deplist1)
+
+p10
 
 ```
 
+
+```{r echo=FALSE}
+p10bis <- ggplot(dt9, aes(fill=series, y=value, x=str_wrap(nom, 40))) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values = c("#31688e", "#fde624"),
+                    labels = c("1ere dose", "2nde dose")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 | Vaccination dans les departements",
+       subtitle = "Etat de la vaccination chez les 40-59 ans",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.01, unit = "cm")),
+        legend.text = element_text(size = 8, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 10, color = "#767676"),
+        axis.text.x = element_text(size = 6.5, angle = 50, hjust = 1),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(color = "#cbcbcb"),
+        panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  scale_x_discrete(limits = deplist2)
+
+p10bis
+```
+
+
+```{r echo=FALSE}
+# Graphique comparant les doses administrees dans les departements - 60-74 ans
+
+p11 <- ggplot(dt10, aes(fill=series, y=value, x=str_wrap(nom, 40))) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values = c("#31688e", "#fde624"),
+                    labels = c("1ere dose", "2nde dose")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 | Vaccination dans les departements",
+       subtitle = "Etat de la vaccination chez les 60-74 ans",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.01, unit = "cm")),
+        legend.text = element_text(size = 8, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 10, color = "#767676"),
+        axis.text.x = element_text(size = 6.5, angle = 50, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(color = "#cbcbcb"),
+        panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(limit = c(0, 5), breaks = c(0:5),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  scale_x_discrete(limits = deplist1)
+
+p11
+```
+
+
+
+```{r echo=FALSE}
+p11bis <- ggplot(dt10, aes(fill=series, y=value, x=str_wrap(nom, 40))) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values = c("#31688e", "#fde624"),
+                    labels = c("1ere dose", "2nde dose")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 | Vaccination dans les departements",
+       subtitle = "Etat de la vaccination chez les 60-74 ans",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.01, unit = "cm")),
+        legend.text = element_text(size = 8, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 10, color = "#767676"),
+        axis.text.x = element_text(size = 6.5, angle = 50, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(color = "#cbcbcb"),
+        panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(limit = c(0, 10), breaks = c(0:10),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  scale_x_discrete(limits = deplist2)
+
+p11bis
+```
+
+
+```{r echo=FALSE}
+# Graphique comparant les doses administrees dans les departements - 75 ans et plus
+
+p12 <- ggplot(dt11, aes(fill=series, y=value, x=str_wrap(nom, 40))) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values = c("#31688e", "#fde624"),
+                    labels = c("1ere dose", "2nde dose")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 | Vaccination dans les departements",
+       subtitle = "Etat de la vaccination chez les 75 ans et plus",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.01, unit = "cm")),
+        legend.text = element_text(size = 8, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 10, color = "#767676"),
+        axis.text.x = element_text(size = 6.5, angle = 50, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(color = "#cbcbcb"),
+        panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(limit = c(0, 50), breaks = c(0,5,10,15,20,25,30,35,40,45,50),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  scale_x_discrete(limits = deplist1)
+
+p12
+```
+
+
+```{r echo=FALSE}
+p12bis <- ggplot(dt11, aes(fill=series, y=value, x=str_wrap(nom, 40))) + 
+  geom_bar(position="dodge", stat="identity") +
+  scale_fill_manual(values = c("#31688e", "#fde624"),
+                    labels = c("1ere dose", "2nde dose")) +
+  geom_hline(yintercept = 0, size = 1, colour="#767676") +
+  bbc_style() +
+  labs(title="COVID-19 | Vaccination dans les departements",
+       subtitle = "Etat de la vaccination chez les 75 ans et plus",
+       caption = "Source : data.gouv.fr") +
+  theme(plot.title = element_text(size = 15, color = "#4e4d47", family = "Brown",
+                                  margin = margin(t = -0.1, unit = "cm")),
+        plot.subtitle = element_text(size = 12, color = "#4e4d47", family = "Brown",
+                                     margin = margin(t = -0.01, unit = "cm")),
+        legend.text = element_text(size = 8, family = "Brown"),
+        axis.text = element_text(family = "Brown", size = 10, color = "#767676"),
+        axis.text.x = element_text(size = 6.5, angle = 50, hjust = 1),
+        axis.text.y = element_text(size = 8),
+        panel.grid.major.y = element_line(color = "#cbcbcb"),
+        panel.grid.minor.y = element_blank(),
+        panel.grid.major.x = element_line(color = "#cbcbcb"),
+        panel.grid.minor.x = element_blank()) +
+  scale_y_continuous(limit = c(0, 50), breaks = c(0,5,10,15,20,25,30,35,40,45,50),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  scale_x_discrete(limits = deplist2)
+
+p12bis
+```
+
+
+### Donnees regionales
+
+
 ```{r include=FALSE}
-# Population totale (indice 0) dans les data de data.gouv
+# Donnees pour la population totale (indice 0) dans les data de data.gouv
 # Assembler avec les donnees INSEE
 
 df2 <- vacsi_tot_a_reg %>%
@@ -490,7 +913,7 @@ df2 <- melt(df2,  id.vars = "noms", variable.name = "series")
 ```
 
 ```{r include=FALSE}
-# Donnees pour la tranche d'age 40-59 ans comme classes par l'INSEE
+# Donnees pour la tranche d'ages 40-59 ans comme classes par l'INSEE
 
 # Les tranches d'ages sont decoupees differemment sur data.gouv
 # Il faut rassembler les classes d'age 49 et 59, 69 et74, 79 et 80 pour correspondre avec le classement INSEE
@@ -516,7 +939,7 @@ df3 <- melt(df3,  id.vars = "noms", variable.name = "series")
 # 60-74 ans
 
 df4 <- vacsi_tot_a_reg %>%
-  filter(clage_vacsi %in% c(69, 74)) %>%
+  filter(clage_vacsi %in% c(64, 69, 74)) %>%
   group_by(reg) %>%
   summarise(n_tot_dose1 = sum(n_tot_dose1), n_tot_dose2 = sum(n_tot_dose2))
 
@@ -548,6 +971,16 @@ df5 <- df5[ c(4, 9, 10) ]
 df5 <- melt(df5,  id.vars = "noms", variable.name = "series")
 ```
 
+```{r include=FALSE}
+# EHPAD
+
+df6 <- vacsi_res_tot_reg_fra %>%
+  inner_join(reg_pop, by = "reg")
+
+df6 <- df6[ c(7,5,6) ]
+
+df6 <- melt(df6,  id.vars = "noms", variable.name = "series")
+```
 
 
 Le graphique ci-dessous montre que, proportionnellement à leur population, les territoires d'Outre-mer ont reçu moins de vaccins, doses 1 et 2 confondues.
@@ -555,9 +988,8 @@ Le graphique ci-dessous montre que, proportionnellement à leur population, les 
 On constate aussi des disparites entre les regions.
 
 
-
 ```{r echo=FALSE}
-# Graphique comparant les doses administr?es en poucentage de la population totale
+# Graphique comparant les doses administrees en poucentage de la population totale
 
 p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -655,7 +1087,7 @@ p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+  scale_y_continuous(limit = c(0, 10), breaks = c(0:10),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   coord_flip()
 
@@ -671,7 +1103,7 @@ Notez que l'echelle a change et va de 0 a 30%.
 
 
 ```{r echo=FALSE}
-# Graphique comparant les doses administr?es en poucentage de la population des 75 ans et plus
+# Graphique comparant les doses administrees en poucentage de la population des 75 ans et plus
 
 p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
@@ -707,20 +1139,8 @@ L'etat de la vaccination est bien avance dans les EHPAD avec presque 100% des re
 Pourtant dans les EHPAD d'Outre-mer, et particulierement en Guadeloupe et en Guyane, l'ecart est tres marque entre la premiere et la seconde injection.
 
 
-
-```{r include=FALSE}
-# Avancement de la vaccination dans les EHPAD, classement par r?gion
-
-df6 <- vacsi_res_tot_reg_fra %>%
-  inner_join(reg_pop, by = "reg")
-
-df6 <- df6[ c(7,5,6) ]
-
-df6 <- melt(df6,  id.vars = "noms", variable.name = "series")
-```
-
 ```{r echo=FALSE}
-# Graphique comparant les doses administrees en poucentage de la population des 75 ans et plus
+# Graphique comparant les doses administrees en poucentage de la population en EHPAD
 
 p7 <- ggplot(df6, aes(fill=series, y=value, x=str_wrap(noms, 40))) + 
   geom_bar(position="dodge", stat="identity") +
