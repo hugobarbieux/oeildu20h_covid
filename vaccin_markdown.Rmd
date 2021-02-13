@@ -330,28 +330,69 @@ vacsi_res_tot_dep <- melt(vacsi_res_tot_dep,  id.vars = "nom", variable.name = "
 
 
 ```{r include=FALSE}
-library(geojsonio)
-library(rgeos)
-library(broom)
-library(rgdal)
-library(rgdal)
+library(tmap)
+library(sp)
+library(sf)
+
+# Importer carte des departements (IGN)
+FR_departements <- st_read("./departements/DEPARTEMENT.shp") %>%
+  select(dep = CODE_DEPT, X_CENTROID, Y_CENTROID) %>%
+  inner_join(dep_pop, by = "dep")
+
+#plot(st_geometry(FR_departements))
+#View(FR_departements)
+
+# Faire la somme cumulée des vaccins reçus et mettre le resulata dans une nouvelle variable
+livraisonsdf <- livraisons_realisees_cumul_dep %>%
+  group_by(code_departement) %>%
+  filter(date == max(date)) %>%
+  group_by(code_departement) %>%
+  summarise(nb_doses_total = sum(nb_doses))
+
+names(livraisonsdf)[1] <- "dep"
+
+# Lier les livraisons aux donnees geo (dans une autre variable pour un graphique)
+
+data <- FR_departements %>%
+  left_join(livraisonsdf, by = "dep") %>%
+  arrange(desc(nb_doses_total)) %>%
+  mutate(text = paste0(nom, " : ", nb_doses_total, " doses"))
+
+```
+
+```{r echo=FALSE}
+tmap_mode("view")
+map_france <- tm_shape(data) +
+  tm_polygons(id = "text", col = "#eeeeee", alpha = 0.3, border.col = "#e6e6e6") +
+  tm_credits("Source : data.gouv.fr", col = "grey10", position = c("right", "bottom")) +
+  tm_layout("Doses livrées - total", title.size = 1.8, bg.color="#e6e6e6", legend.title.size=1.2, fontfamily = "Brown",
+            legend.position = c("left", "bottom"), legend.format = c(text.align = "right", text.separator = "-"),
+            outer.margins=c(0,0,.05,0), inner.margins=c(0,.02,.02,.02), asp=0, frame = FALSE) +
+  tm_bubbles(id = "text", size = "nb_doses_total", col = "nb_doses_total", alpha = 0.8, border.col = "white", border.alpha=0, palette = "plasma",
+             breaks=c(6000, 10000, 25000, 50000, 75000, 100000, 120000, 140000), style="equal", title.col="Nombre de doses", legend.size.show = FALSE)
+map_france
+```
+
+
+```{r include=FALSE}
+#library(geojsonio)
+#library(rgeos)
+#library(broom)
+#library(rgdal)
 
 #Load basic background map
-
-dpt_map <- geojson_read("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson", what = "sp")
+#dpt_map <- geojson_read("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson", what = "sp")
 
 #Create SpatialPointsDataFrame to export via writeOGR
-centr <- gCentroid(dpt_map, byid = TRUE)
-centr <- SpatialPointsDataFrame(centr, data = dpt_map@data)
+#centr <- gCentroid(dpt_map, byid = TRUE)
+#centr <- SpatialPointsDataFrame(centr, data = dpt_map@data)
 
-writeOGR(centr, "france_dpt_centroids.geojson", layer = "centroid", driver = "GeoJSON")
+#writeOGR(centr, "france_dpt_centroids.geojson", layer = "centroid", driver = "GeoJSON")
 
-centroids = geojson_read("france_dpt_centroids.geojson", what = "sp") %>%
-  as.data.frame
+#centroids = geojson_read("france_dpt_centroids.geojson", what = "sp") %>% as.data.frame
 
 #Fortify the data AND keep trace of the departement code!
-
-dpt_fortified <- tidy(dpt_map, region = "code")
+#dpt_fortified <- tidy(dpt_map, region = "code")
 
 # Now I can plot this shape using the geom_polygon() function
 #p = dpt_fortified %>%
@@ -361,27 +402,23 @@ dpt_fortified <- tidy(dpt_map, region = "code")
 #  coord_map()
 
 # Faire la somme cumulée des vaccins reçus et mettre le resulata dans une nouvelle variable
-
-livraisonsdf <- livraisons_realisees_cumul_dep %>%
-  group_by(code_departement) %>%
-  filter(date == max(date)) %>%
-  group_by(code_departement) %>%
-  summarise(nb_doses_total = sum(nb_doses))
+#livraisonsdf <- livraisons_realisees_cumul_dep %>%
+#  group_by(code_departement) %>%
+#  filter(date == max(date)) %>%
+#  group_by(code_departement) %>%
+#  summarise(nb_doses_total = sum(nb_doses))
 
 # Lier les donnes de vaccination aux donnees geographiques
-
-data <- inner_join(livraisonsdf, centroids, by = c("code_departement" = "code")) %>%
-  arrange(nb_doses_total)
+#data <- inner_join(livraisonsdf, centroids, by = c("code_departement" = "code")) %>% arrange(nb_doses_total)
 
 # Renomer les colonnes
-
-names(data)[4] <- "lon"
-names(data)[5] <- "lat"
+#names(data)[4] <- "lon"
+#names(data)[5] <- "lat"
 
 ```
 
 
-```{r echo=FALSE}
+```{r eval=FALSE, include=FALSE}
 mybreaks <- c(10000, 25000, 50000, 75000, 100000, 120000)
 
 mapplot =  ggplot(dpt_fortified) +
