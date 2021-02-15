@@ -240,7 +240,7 @@ df2 <-left_join(df2, reg_pop, by = "reg") %>%
   mutate(`%_population_dose1` = round(n_tot_dose1/(as.numeric(pop_total))*100, digits = 2)) %>%
   mutate(`%_population_dose2` = round(n_tot_dose2/(as.numeric(pop_total))*100, digits = 2))
 
-df2 <- df2[ c(6, 11, 12) ]
+df2 <- df2[ c(8, 13, 14) ]
 
 df2 <- melt(df2,  id.vars = "noms", variable.name = "series")
 
@@ -678,7 +678,7 @@ p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,250000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,260000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   geom_vline(xintercept = as.numeric(df$jour[dose_2_vline]),
              col = "black", lwd = 0.5) +
   geom_label(aes(x = as.Date(c("2021-02-06")), y = 200000, label = "Introduction du\nvaccin AstraZeneca"), 
@@ -870,7 +870,7 @@ p2
 
 En valeurs absolues, on voit que si la vaccination pour les secondes doses est mieux suivie chez les 40-59 ans, la vaccination en general est plus __massive__ chez les 75 ans et plus
 
-```{r include=FALSE}
+```{r echo=FALSE}
 p2bis <- ggplot(data = dt7,
             aes(x = as.character(clage_vacsi),
                 y = value,

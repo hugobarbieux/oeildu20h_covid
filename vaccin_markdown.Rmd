@@ -89,6 +89,15 @@ _Attention : la seconde dose ne figure pas toujours dans data.gouv.fr ! Il faut 
 
 Geodes propose le total des secondes injections par jour. Recuperer ces donnees se fait principalement a la main dans un tableau a part.
 
+```{r}
+## TELECHARGEMENT DE DONNEES COMPLEMENTAIRES
+
+# Donnees sur les soignants par departement, source : DGS
+soignants_df <- read.csv("soignants_par_departement.csv") %>%
+  select(dep = c(1), c(2), c(3))
+```
+
+
 ```{r include=FALSE}
 ## TELECHARGEMENT DE DONNEES COMPLEMENTAIRES
 # Donnes sur les deuxiemes doses, niveau national, par tranche d'ages
@@ -394,8 +403,6 @@ vacsi_res_tot_dep <- melt(vacsi_res_tot_dep,  id.vars = "nom", variable.name = "
 
 ## __Livraisons de vaccins - Ou sont les doses ?__
 
-### Chiffres cumules de livraisons, tous vaccins confondus.
-
 
 ```{r include=FALSE}
 library(tmap)
@@ -428,9 +435,61 @@ data_map <- FR_departements %>%
 
 ```
 
+### __Repartition des doses de vaccins par 100 habitants elegibles a la vaccination__
+
+```{r include=FALSE}
+# Lier les donnes de de livraisons aux donnees soignants
+
+public_prior <- soignants_df %>%
+  left_join(dep_pop, by = "dep")%>%
+  mutate(public = (`75_plus` + soignants_prioritaires)) %>%
+  left_join(livraisonsdf, by = "dep") %>%
+  mutate(ratio_prior = round((nb_doses_total/public)*100, digits = 0)) %>%
+  mutate(text = paste0(nom, " : ", ratio_prior, " doses pour 100 habitants prioritaires"))
+
+map_publicprior_df <- FR_departements %>%
+  left_join(public_prior, by = "dep")
+```
+
 ```{r echo=FALSE}
 tmap_mode("view")
 
+map_france_prior <- tm_shape(map_publicprior_df) +
+  tm_polygons(id = "text",
+              col = "#eeeeee",
+              alpha = 0.3,
+              border.col = "#e6e6e6") +
+  tm_credits("Source : data.gouv.fr",
+             col = "grey10",
+             position = c("right", "bottom")) +
+  tm_layout("Doses livrées - total",
+            title.size = 1.8,
+            bg.color="#e6e6e6",
+            legend.title.size=1.2,
+            fontfamily = "Brown",
+            legend.position = c("left", "bottom"),
+            legend.format = c(text.align = "right",
+                              text.separator = "-"),
+            outer.margins=c(0,0,.05,0),
+            inner.margins=c(0,.02,.02,.02),
+            asp=0,
+            frame = FALSE) +
+  tm_bubbles(id = "text",
+             size = "ratio_prior",
+             col = "ratio_prior",
+             alpha = 0.8, border.col = "white",
+             border.alpha=0, palette = "plasma",
+             breaks=c(6000, 10000, 25000, 50000, 75000, 100000, 120000, 140000),
+             style="equal",
+             title.col="Nombre de doses pour 100 habitants eligibles a la vaccination",
+             legend.size.show = FALSE)
+
+map_france_prior
+```
+
+### __Chiffres cumules de livraisons, tous vaccins confondus.__
+
+```{r echo=FALSE}
 map_france <- tm_shape(data_map) +
   tm_polygons(id = "text",
               col = "#eeeeee",
@@ -464,15 +523,15 @@ map_france
 ```
 
 
-### Chiffres de livraisons, __par 100 000 habitants__, tous vaccins confondus.
+### __Chiffres de livraisons, __par 100 habitants__, tous vaccins confondus.__
 
 ```{r include=FALSE}
 # Calcul du nombres de doses livrees par 100k habitants
 data_map2 <- FR_departements %>%
   left_join(livraisonsdf, by = "dep") %>%
   arrange(desc(nb_doses_total)) %>%
-  mutate(doses_par_habitant = round((nb_doses_total/pop_total)*100000, digits = 2)) %>%
-  mutate(text = paste0(nom, " : ", doses_par_habitant, " doses/100 000 hab.")) %>%
+  mutate(doses_par_habitant = round((nb_doses_total/pop_total)*100, digits = 2)) %>%
+  mutate(text = paste0(nom, " : ", doses_par_habitant, " doses/100 hab.")) %>%
   arrange(desc(doses_par_habitant))
 ```
 
@@ -484,7 +543,7 @@ map_france2 <- tm_shape(data_map2) +
   tm_credits("Source : data.gouv.fr",
              col = "grey10",
              position = c("right", "bottom")) +
-  tm_layout("Doses livrées, par 100 000 hab.- total",
+  tm_layout("Doses livrées, par 100 hab.- total",
             title.size = 1.8,
             bg.color="#e6e6e6",
             legend.title.size=1.2,
