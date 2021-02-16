@@ -513,7 +513,7 @@ map_france_prior <- tm_shape(map_publicprior_df) +
 map_france_prior
 ```
 
-#### Seulement Pfizer
+#### Répartition des doses de vaccins Pfizer pour 100 habitants prioritaires
 
 ```{r include=FALSE}
 livraisons_pfizer_dep <- livraisons_realisees_cumul_dep %>%
@@ -525,12 +525,14 @@ livraisons_pfizer_dep <- livraisons_realisees_cumul_dep %>%
 
 names(livraisons_pfizer_dep)[1] <- "dep"
 
-
 data_map_pfizer <- FR_departements %>%
   left_join(livraisons_pfizer_dep, by = "dep") %>%
-  mutate(ratio_pfizer = round((nb_doses_total/pop_total)*100, digits = 0)) %>%
+  left_join(soignants_df, by = "dep") %>%
+  mutate(public = (`75_plus` + soignants_prioritaires)) %>%
+  mutate(ratio_pfizer = round((nb_doses_total/public)*100, digits = 0)) %>%
   arrange(desc(nb_doses_total)) %>%
-  mutate(text = paste0(nom, " : ", ratio_pfizer, " doses Pfizer/100 hab."))
+  mutate(text = paste0(nom, " : ", ratio_pfizer, " doses Pfizer/100 hab. prioritaires"))
+
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
