@@ -1479,8 +1479,8 @@ p7
 
 # Create dataframe
 data <- data.frame(
-  category=c("Personnel de sante\n+ 50 ans", "Autre personnel de sante", "Reste de la population"),
-  count=c(535630,930854,67422241)
+  category=c("Personnel de sante\n elegible a la vaccination", "Autre personnel de sante", "Reste de la population"),
+  count=c(972505,972505,65477231)
 )
 
 # Compute percentages
