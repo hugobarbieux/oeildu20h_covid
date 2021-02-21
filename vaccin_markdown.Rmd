@@ -470,45 +470,54 @@ public_prior <- soignants_df %>%
   left_join(dep_pop, by = "dep")%>%
   mutate(public = (`75_plus` + soignants_prioritaires)) %>%
   left_join(livraisonsdf, by = "dep") %>%
-  mutate(ratio_prior = round((nb_doses_total/public)*100, digits = 0)) %>%
-  mutate(text = paste0(nom, " : ", ratio_prior, " doses pour 100 habitants prioritaires"))
+  mutate(`doses/hab prioritaire` = round((nb_doses_total/public)*100, digits = 0)) %>%
+  mutate(text = paste0(nom, " : ", `doses/hab prioritaire`, " doses pour 100 habitants prioritaires"))
 
 map_publicprior_df <- FR_departements %>%
   left_join(public_prior, by = "dep")
 ```
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-tmap_mode("view")
+tmap_mode("plot")
+#tmap_mode("view")
+
+mypalette <- c("#f0f9e8","#eb0032")
 
 map_france_prior <- tm_shape(map_publicprior_df) +
   tm_polygons(id = "text",
-              col = "#eeeeee",
-              alpha = 0.3,
+              col = "doses/hab prioritaire",
+              palette = mypalette,
+              alpha = 0.8,
+              contrast = 1.2,
               border.col = "#e6e6e6") +
-  tm_credits("Source : data.gouv.fr",
-             col = "grey10",
-             position = c("right", "bottom")) +
-  tm_layout("Doses livrées - total",
-            title.size = 1.8,
+  #tm_polygons(id = "text",
+  #            col = "#eeeeee",
+  #            alpha = 0.3,
+  #            border.col = "#e6e6e6") +
+  tm_layout(main.title = "Doses livrées pour\n100 habitants prioritaires",
+            title.size = 1,
             bg.color="#e6e6e6",
-            legend.title.size=1.2,
+            legend.title.size=0.95,
             fontfamily = "Brown",
             legend.position = c("left", "bottom"),
             legend.format = c(text.align = "right",
                               text.separator = "-"),
-            outer.margins=c(0,0,.05,0),
-            inner.margins=c(0,.02,.02,.02),
-            asp=0,
+            outer.margins=c(0.02,0.02,0.02,0.02),
+            inner.margins=c(0.02,0.02,0.02,0.02),
+            asp=0.0,
             frame = FALSE) +
-  tm_bubbles(id = "text",
-             size = "ratio_prior",
-             col = "ratio_prior",
-             alpha = 0.8, border.col = "white",
-             border.alpha=0, palette = "plasma",
-             breaks=c(6000, 10000, 25000, 50000, 75000, 100000, 120000, 140000),
-             style="equal",
-             title.col="/ 100 habitants",
-             legend.size.show = FALSE)
+  tm_credits("Source : data.gouv.fr",
+             col = "grey10",
+             position = c("right", "bottom"))
+  #tm_bubbles(id = "text",
+  #           size = "ratio_prior",
+  #           col = "ratio_prior",
+  #           alpha = 0.8, border.col = "white",
+  #           border.alpha=0, palette = "plasma",
+  #           breaks=c(6000, 10000, 25000, 50000, 75000, 100000, 120000, 140000),
+  #           style="equal",
+  #           title.col="/ 100 habitants",
+  #           legend.size.show = FALSE) +
 
 map_france_prior
 ```
@@ -538,16 +547,16 @@ data_map_pfizer <- FR_departements %>%
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 map_france_pfizer <- tm_shape(data_map_pfizer) +
   tm_polygons(id = "text",
-              col = "#eeeeee",
+              col = "#b59475",
               alpha = 0.3,
               border.col = "#e6e6e6") +
   tm_credits("Source : data.gouv.fr",
              col = "grey10",
              position = c("right", "bottom")) +
-  tm_layout("Doses livrées - total",
-            title.size = 1.8,
+  tm_layout("Doses livrées\npour 100 habitants prioritaires",
+            title.size = 1,
             bg.color="#e6e6e6",
-            legend.title.size=1.2,
+            legend.title.size=0.95,
             fontfamily = "Brown",
             legend.position = c("left", "bottom"),
             legend.format = c(text.align = "right",
@@ -570,7 +579,7 @@ map_france_pfizer
 ```
 
 
-## __Nombre de centres de vaccination par 100 000 habitants__
+### __Nombre de centres de vaccination par 100 000 habitants__
 
 ```{r include=FALSE}
 centres_vax_map_df <- FR_departements %>%
@@ -585,16 +594,16 @@ centres_vax_map_df <- FR_departements %>%
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 map_france_prior <- tm_shape(centres_vax_map_df) +
   tm_polygons(id = "text",
-              col = "#eeeeee",
+              col = "#b59475",
               alpha = 0.3,
               border.col = "#e6e6e6") +
   tm_credits("Source : data.gouv.fr",
              col = "grey10",
              position = c("right", "bottom")) +
-  tm_layout("Nombre de centres de vaccination par 100 000 habitants",
-            title.size = 1.8,
+  tm_layout("Nombre de centres de vaccination\npour 100 000 habitants",
+            title.size = 1,
             bg.color="#e6e6e6",
-            legend.title.size=1.2,
+            legend.title.size=0.95,
             fontfamily = "Brown",
             legend.position = c("left", "bottom"),
             legend.format = c(text.align = "right",
@@ -624,16 +633,16 @@ map_france_prior
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 map_france <- tm_shape(data_map) +
   tm_polygons(id = "text",
-              col = "#eeeeee",
+              col = "#b59475",
               alpha = 0.3,
               border.col = "#e6e6e6") +
   tm_credits("Source : data.gouv.fr",
              col = "grey10",
              position = c("right", "bottom")) +
   tm_layout("Doses livrées - total",
-            title.size = 1.8,
+            title.size = 1,
             bg.color="#e6e6e6",
-            legend.title.size=1.2,
+            legend.title.size=0.95,
             fontfamily = "Brown",
             legend.position = c("left", "bottom"),
             legend.format = c(text.align = "right",
@@ -671,16 +680,16 @@ data_map2 <- FR_departements %>%
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 map_france2 <- tm_shape(data_map2) +
-  tm_polygons(id = "text", col = "#eeeeee",
+  tm_polygons(id = "text", col = "#b59475",
               alpha = 0.3,
               border.col = "#e6e6e6") +
   tm_credits("Source : data.gouv.fr",
              col = "grey10",
              position = c("right", "bottom")) +
   tm_layout("Doses livrées, pour 100 hab.",
-            title.size = 1.8,
+            title.size = 1,
             bg.color="#e6e6e6",
-            legend.title.size=1.2,
+            legend.title.size=0.95,
             fontfamily = "Brown",
             legend.position = c("left", "bottom"),
             legend.format = c(text.align = "right",
@@ -820,7 +829,7 @@ p <- ggplot(vacsi_a_fra_2doses, aes(x = jour, y = cum_dose1, colour=as.character
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,1500000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,1550000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   geom_vline(xintercept = as.numeric(vacsi_a_fra_2doses$jour[dose_1_vline]),
              col = "black", lwd = 0.5) +
   geom_label(aes(x = as.Date(c("2021-02-06")), y = 1300000, label = "Introduction du\nvaccin AstraZeneca"), 
@@ -871,10 +880,10 @@ p <- ggplot(df, aes(x = jour, y = cum_dose2, colour = as.character(clage_vacsi))
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,260000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,600000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   geom_vline(xintercept = as.numeric(df$jour[dose_2_vline]),
              col = "black", lwd = 0.5) +
-  geom_label(aes(x = as.Date(c("2021-02-06")), y = 200000, label = "Introduction du\nvaccin AstraZeneca"), 
+  geom_label(aes(x = as.Date(c("2021-02-06")), y = 500000, label = "Introduction du\nvaccin AstraZeneca"), 
                            hjust = "right", 
                            vjust = 0.5, 
                            colour = "#555555", 
@@ -910,7 +919,7 @@ vacsi_res_fra_bis <- vacsi_res_fra %>% mutate_at(c("cum_dose2"), funs(lead), n =
 #Reconstituer la dataframe dans une nouvelle variable et conserver seulement certaines dates pour "zoomer" dans la periode interessante
 vacsi_a_fra_2doses_bis <- rbind(dt1_bis, dt2_bis, dt3_bis, vacsi_res_fra_bis)
 
-vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour < as.Date("2021-01-22"))
+vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour < as.Date("2021-01-28"))
 
 vacsi_a_fra_2doses_bis <- subset(vacsi_a_fra_2doses_bis, vacsi_a_fra_2doses_bis$jour > as.Date("2021-01-04"))
   
@@ -936,10 +945,10 @@ p <- ggplot(vacsi_a_fra_2doses_bis, aes(x = jour, colour=as.character(clage_vacs
         panel.grid.minor.y = element_line(color = "#d9dddc"),
         panel.grid.major.x = element_line(color = "#d9dddc")) +
   scale_x_date(date_labels = "%d %b", date_breaks = "3 days") +
-  scale_y_continuous(limit = c(0,420000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
+  scale_y_continuous(limit = c(0,750000), labels=function(x) format(x, big.mark = " ", scientific = FALSE)) +
   #geom_vline(xintercept = as.numeric(vacsi_a_fra_2doses$jour[dose_1_vline]),
              #col = "black", lwd = 0.5) +
-  geom_label(aes(x = as.Date(c("2021-01-06")), y = 320000, label = "Les trajectoires des\nsecondes vaccinations\n(en pointilles)\nont ete ramenees\nartificiellement 21 jours\nplus tot pour suivre\nles premieres series\nd'injections"), 
+  geom_label(aes(x = as.Date(c("2021-01-06")), y = 500000, label = "Les trajectoires des\nsecondes vaccinations\n(en pointilles)\nont ete ramenees\nartificiellement 21 jours\nplus tot pour suivre\nles premieres series\nd'injections"), 
                            hjust = "left", 
                            vjust = 0.5, 
                            colour = "#696969", 
@@ -1146,7 +1155,7 @@ p10 <- ggplot(dt9, aes(fill=series, y=value, x=str_wrap(nom, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+  scale_y_continuous(limit = c(0,10), breaks = c(0:10),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   scale_x_discrete(limits = deplist1)
 
@@ -1175,7 +1184,7 @@ p10bis <- ggplot(dt9, aes(fill=series, y=value, x=str_wrap(nom, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+  scale_y_continuous(limit = c(0,10), breaks = c(0:10),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   scale_x_discrete(limits = deplist2)
 
@@ -1206,7 +1215,7 @@ p11 <- ggplot(dt10, aes(fill=series, y=value, x=str_wrap(nom, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 5), breaks = c(0:5),
+  scale_y_continuous(limit = c(0,10), breaks = c(0:10),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   scale_x_discrete(limits = deplist1)
 
@@ -1331,7 +1340,7 @@ p3 <- ggplot(df2, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+  scale_y_continuous(limit = c(0,20), breaks = c(0,5,10,15,20),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   coord_flip()
 
@@ -1365,7 +1374,7 @@ p4 <- ggplot(df3, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 5), breaks = c(0, 1, 2, 3, 4, 5),
+  scale_y_continuous(limit = c(0, 20), breaks = c(0,5,10,15,20),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   coord_flip()
 
@@ -1399,7 +1408,7 @@ p5 <- ggplot(df4, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 10), breaks = c(0:10),
+  scale_y_continuous(limit = c(0, 20), breaks = c(0:20),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   coord_flip()
 
@@ -1433,7 +1442,7 @@ p6 <- ggplot(df5, aes(fill=series, y=value, x=str_wrap(noms, 40))) +
         panel.grid.minor.y = element_blank(),
         panel.grid.major.x = element_line(color = "#cbcbcb"),
         panel.grid.minor.x = element_blank()) +
-  scale_y_continuous(limit = c(0, 30), breaks = c(0,5,10,15,20,25,30),
+  scale_y_continuous(limit = c(0, 50), breaks = c(0,5,10,15,20,25,30,35,40,45,50),
                      labels = scales::percent_format(scale = 1, accuracy = 1)) +
   coord_flip()
 
